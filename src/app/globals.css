@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ... (izindi code zawe za Video.js) ... */
+
+.video-js {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.video-js .vjs-tech {
+  object-fit: cover !important;
+}
+
+/* Big Play Button - PULSE */
+.vjs-big-play-button {
+  display: block !important;
+  background: linear-gradient(135deg, #2563eb, #6366f1) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 80px !important;
+  height: 80px !important;
+  line-height: 80px !important;
+  margin-left: -40px !important;
+  margin-top: -40px !important;
+  z-index: 100 !important;
+  animation: pulse 2s infinite !important;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+  70% { box-shadow: 0 0 0 20px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+.vjs-playing .vjs-big-play-button {
+  display: none !important;
+}
+
+/* CONTROL BAR - Iguma igaragara cyangwa igaragara iyo unyerera */
+.vjs-control-bar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: rgba(3, 7, 18, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  height: 60px !important;
+}
+
+/* Iyi ni yo ituma ibuto za Clavier zigaragara neza */
+.vjs-play-control, .vjs-volume-panel, .vjs-fullscreen-control {
+  color: #60a5fa !important;
+}
+
+.vjs-play-progress {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6) !important;
+}
+
+.vjs-volume-level {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6) !important;
+}
+/* Control Bar igaragara iyo unyerera */
+.video-js:hover .vjs-control-bar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ihisha iyo utayikandaho (Default) */
+.vjs-control-bar {
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+}

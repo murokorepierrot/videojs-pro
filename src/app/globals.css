@@ -2,74 +2,1818 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ... (izindi code zawe za Video.js) ... */
-
-.video-js {
-  width: 100% !important;
-  height: 100% !important;
+/* =========================================
+   1. VIDEO (Video.js v10 MuxVideo renders a native <video>)
+   ========================================= */
+.cinema-video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
 }
 
-.video-js .vjs-tech {
-  object-fit: cover !important;
+/* =========================================
+   2. KEYFRAMES
+   ========================================= */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-/* Big Play Button - PULSE */
-.vjs-big-play-button {
-  display: block !important;
-  background: linear-gradient(135deg, #2563eb, #6366f1) !important;
-  border: none !important;
-  border-radius: 50% !important;
-  width: 80px !important;
-  height: 80px !important;
-  line-height: 80px !important;
-  margin-left: -40px !important;
-  margin-top: -40px !important;
-  z-index: 100 !important;
-  animation: pulse 2s infinite !important;
+@keyframes reel-spin {
+  to { transform: rotate(360deg); }
 }
 
-@keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
-  70% { box-shadow: 0 0 0 20px rgba(37, 99, 235, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+/* Spinning 35mm reel: pauses in place instead of resetting */
+.reel {
+  animation: reel-spin 3s linear infinite;
+  animation-play-state: paused;
 }
 
-.vjs-playing .vjs-big-play-button {
-  display: none !important;
+.reel.is-playing {
+  animation-play-state: running;
 }
 
-/* CONTROL BAR - Iguma igaragara cyangwa igaragara iyo unyerera */
-.vjs-control-bar {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  background: rgba(3, 7, 18, 0.75) !important;
-  backdrop-filter: blur(12px) !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-  height: 60px !important;
+/* =========================================
+   3. FOCUS (always visible for keyboard users)
+   ========================================= */
+.cinema-stage :focus-visible {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
 }
 
-/* Iyi ni yo ituma ibuto za Clavier zigaragara neza */
-.vjs-play-control, .vjs-volume-panel, .vjs-fullscreen-control {
-  color: #60a5fa !important;
+.cinema-screen > button:focus-visible {
+  outline-offset: -4px;
 }
 
-.vjs-play-progress {
-  background: linear-gradient(to right, #3b82f6, #8b5cf6) !important;
+/* =========================================
+   4. FILMSTRIP = Video.js v10 <TimeSlider>
+   ========================================= */
+.film-slider {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  background: #08080b;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
 }
 
-.vjs-volume-level {
-  background: linear-gradient(to right, #3b82f6, #8b5cf6) !important;
-}
-/* Control Bar igaragara iyo unyerera */
-.video-js:hover .vjs-control-bar {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
+.film-slider:has(.film-gate:focus-visible) {
+  outline: 2px solid #fbbf24;
+  outline-offset: 2px;
 }
 
-/* Ihisha iyo utayikandaho (Default) */
-.vjs-control-bar {
-  opacity: 0 !important;
-  transition: opacity 0.3s ease !important;
+.film-track {
+  position: relative;
+  display: block;
+  margin: 6px 0;
+  overflow: hidden;
+}
+
+.sprockets {
+  height: 7px;
+  margin: 0 2px;
+  opacity: 0.75;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(226, 232, 240, 0.6) 0 7px,
+    transparent 7px 15px
+  );
+}
+
+/* unwatched film is dimmed; --media-slider-fill is provided by the v10 slider */
+.film-dim {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--media-slider-fill, 0%);
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+/* the gate: playhead + keyboard focus target */
+.film-gate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--media-slider-fill, 0%);
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: #fbbf24;
+  box-shadow: 0 0 12px 2px rgba(245, 158, 11, 0.9);
+  outline-offset: -1px;
+}
+
+.film-gate:focus-visible {
+  width: 6px;
+  margin-left: -3px;
+}
+
+/* =========================================
+   5. PROJECTOR EFFECTS
+   ========================================= */
+.film-grain {
+  inset: -6% !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+  animation: grain 0.5s steps(4) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-3%, 2%); }
+  50% { transform: translate(2%, -3%); }
+  75% { transform: translate(-2%, -1%); }
+  100% { transform: translate(0, 0); }
+}
+
+.gate-burn {
+  mix-blend-mode: screen;
+  background: radial-gradient(ellipse at center, rgba(255, 200, 120, 0) 35%, rgba(255, 170, 60, 0.55) 100%);
+  animation: burn 0.6s ease-out forwards;
+}
+
+@keyframes burn {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.skip-fx {
+  background: rgba(255, 255, 255, 0.14);
+  animation: skipfx 0.7s ease-out forwards;
+}
+
+@keyframes skipfx {
+  0% { opacity: 0; transform: scale(0.9); }
+  20% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; }
+}
+
+/* =========================================
+   6. ERROR DIALOG (v10 <ErrorDialog>)
+   ========================================= */
+.cinema-error {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.cinema-error:not([data-open]) {
+  display: none;
+}
+
+.cinema-error button {
+  min-height: 44px;
+  padding: 0 1.25rem;
+  margin-top: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+}
+
+/* =========================================
+   7. FULLSCREEN (v10 Container = video + deck)
+   The video fills the whole screen (object-fit: contain); the deck floats at the bottom and auto-hides when idle.
+   ========================================= */
+.cinema-stage:fullscreen {
+  position: relative;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  overflow: hidden;
+  transform: none !important;
+}
+
+.cinema-stage:fullscreen .cinema-screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto !important;
+}
+
+.cinema-stage:fullscreen .cinema-video {
+  object-fit: contain;
+}
+
+.cinema-stage:fullscreen .deck {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-height: none;
+  overflow: visible;
+  padding: 2.25rem max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  border-top: 0;
+  background: linear-gradient(to top, rgba(5, 8, 18, 0.97) 0%, rgba(5, 8, 18, 0.85) 60%, rgba(5, 8, 18, 0) 100%);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.cinema-stage:-webkit-full-screen {
+  position: relative;
+  display: block;
+  border: 0;
+  border-radius: 0;
+  background: #000;
+  overflow: hidden;
+  transform: none !important;
+}
+
+.cinema-stage:-webkit-full-screen .cinema-screen {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto !important;
+}
+
+.cinema-stage:-webkit-full-screen .cinema-video {
+  object-fit: contain;
+}
+
+.cinema-stage:-webkit-full-screen .deck {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  max-height: none;
+  overflow: visible;
+  padding: 2.25rem max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  border-top: 0;
+  background: linear-gradient(to top, rgba(5, 8, 18, 0.97) 0%, rgba(5, 8, 18, 0.85) 60%, rgba(5, 8, 18, 0) 100%);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* =========================================
+   8. VOLUME SLIDER
+   ========================================= */
+.deck-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+  background: linear-gradient(
+    to right,
+    #f59e0b var(--fill, 100%),
+    rgba(255, 255, 255, 0.18) var(--fill, 100%)
+  );
+}
+
+.deck-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fbbf24;
+  border: 2px solid #000;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+}
+
+.deck-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fbbf24;
+  border: 2px solid #000;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
+}
+
+/* =========================================
+   9. SMALL SCREENS
+   ========================================= */
+.deck {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+@media (max-width: 768px) {
+  .deck-vol,
+  .deck-pip {
+    display: none !important;
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  .cinema-stage:fullscreen .deck {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+  }
+}
+
+/* =========================================
+   10. REDUCED MOTION
+   ========================================= */
+@media (prefers-reduced-motion: reduce) {
+  .reel,
+  .reel.is-playing,
+  .film-grain,
+  .skip-fx {
+    animation: none;
+  }
+
+  .gate-burn {
+    display: none;
+  }
+
+  .cinema-stage * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================
+   11. COUNTDOWN LEADER + PROJECTOR BEAM
+   ========================================= */
+.leader-sweep {
+  background: conic-gradient(from 0deg, rgba(255, 255, 255, 0) 0deg, rgba(255, 255, 255, 0.3) 360deg);
+  animation: leader-sweep 0.65s linear forwards;
+}
+
+@keyframes leader-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.leader-num {
+  animation: leader-pop 0.65s ease-out;
+}
+
+@keyframes leader-pop {
+  0% { transform: scale(1.3); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Light cone rising from the deck, with dust drifting through it */
+.beam {
+  mix-blend-mode: screen;
+  background: conic-gradient(
+    from -26deg at 50% 112%,
+    transparent 0deg,
+    rgba(255, 226, 170, 0.1) 13deg,
+    rgba(255, 226, 170, 0.2) 26deg,
+    rgba(255, 226, 170, 0.1) 39deg,
+    transparent 52deg
+  );
+  -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.45) 70%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.45) 70%, transparent 100%);
+}
+
+.dust {
+  position: absolute;
+  bottom: -4%;
+  border-radius: 50%;
+  background: rgba(255, 235, 200, 0.85);
+  box-shadow: 0 0 6px rgba(255, 220, 160, 0.8);
+  opacity: 0;
+  animation: dust-rise linear infinite;
+}
+
+@keyframes dust-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 0.9; }
+  90% { opacity: 0.6; }
+  100% { transform: translate(16px, -480px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dust { animation: none; opacity: 0; }
+  .leader-sweep, .leader-num { animation: none; }
+}
+
+/* =========================================
+   12. CINEMA CURTAIN
+   ========================================= */
+.curtain-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50.5%;
+  will-change: transform;
+  transition: transform 1.15s cubic-bezier(0.65, 0, 0.25, 1);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent 20%, transparent 80%, rgba(0, 0, 0, 0.5)),
+    repeating-linear-gradient(90deg, #6b0f1a 0 16px, #8c1626 16px 34px, #560b15 34px 48px);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.55);
+}
+
+.curtain-panel::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  background: repeating-linear-gradient(90deg, #d4a84b 0 3px, transparent 3px 7px);
+  opacity: 0.85;
+}
+
+.curtain-left {
+  left: 0;
+  border-right: 3px solid #d4a84b;
+}
+
+.curtain-right {
+  right: 0;
+  border-left: 3px solid #d4a84b;
+}
+
+.curtain.is-open .curtain-left {
+  transform: translateX(-101%);
+}
+
+.curtain.is-open .curtain-right {
+  transform: translateX(101%);
+}
+
+/* =========================================
+   13. PROJECTOR CONTROL PANEL (glass sheet)
+   ========================================= */
+.panel-scrim {
+  animation: panel-fade 0.25s ease-out both;
+}
+
+.panel-scrim[data-state='closing'] {
+  animation: panel-fade-out 0.22s ease-in both;
+}
+
+.projector-panel {
+  animation: panel-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.projector-panel[data-state='closing'] {
+  animation: panel-out 0.22s ease-in both;
+}
+
+.panel-item {
+  animation: panel-item-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+/* a bulb-flash of light sweeping across the top edge as the panel "powers on" */
+.panel-scan {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, #fbbf24, #fff, #fbbf24, transparent);
+  box-shadow: 0 0 18px 4px rgba(251, 191, 36, 0.55);
+  transform: translateX(-100%);
+  animation: panel-scan 0.9s 0.1s ease-out forwards;
+}
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(36px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes panel-out {
+  to { opacity: 0; transform: translateY(24px) scale(0.98); }
+}
+
+@keyframes panel-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panel-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes panel-item-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes panel-scan {
+  from { transform: translateX(-100%); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .curtain-panel {
+    transition: none;
+  }
+  .panel-scrim,
+  .projector-panel,
+  .panel-item,
+  .panel-scan {
+    animation: none !important;
+  }
+  .panel-scan {
+    display: none;
+  }
+}
+
+/* =========================================
+   14. WELCOME TEXT, SUBTITLES, BEAMS
+   ========================================= */
+.welcome-kicker {
+  color: #f5d98a;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+}
+
+.welcome-title {
+  background: linear-gradient(180deg, #fff3c4 0%, #e8b94a 60%, #a8741a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
+}
+
+/* Subtitles: warm yellow on a dark glass strip, readable over bright and dark footage */
+.caption-text {
+  color: #ffe066;
+  background: rgba(0, 0, 0, 0.74);
+  border: 1px solid rgba(255, 224, 102, 0.18);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Two cones of light: one rising from the deck, one falling from the lamp above */
+.beam {
+  background: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+  mix-blend-mode: screen;
+}
+
+.beam-bottom {
+  background: conic-gradient(
+    from -26deg at 50% 112%,
+    transparent 0deg,
+    rgba(255, 226, 170, 0.1) 13deg,
+    rgba(255, 226, 170, 0.2) 26deg,
+    rgba(255, 226, 170, 0.1) 39deg,
+    transparent 52deg
+  );
+  -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.45) 70%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.45) 70%, transparent 100%);
+}
+
+.beam-top {
+  background: conic-gradient(
+    from 154deg at 50% -12%,
+    transparent 0deg,
+    rgba(255, 226, 170, 0.08) 13deg,
+    rgba(255, 226, 170, 0.16) 26deg,
+    rgba(255, 226, 170, 0.08) 39deg,
+    transparent 52deg
+  );
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
+}
+
+/* =========================================
+   15. DIRECTOR'S VIEW (camera viewfinder)
+   ========================================= */
+.viewfinder {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+.vf-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(
+      to right,
+      transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.3) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.3) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.3) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.3) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.3) calc(33.333% - 0.5px),
+      rgba(255, 255, 255, 0.3) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px),
+      transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.3) calc(66.666% - 0.5px),
+      rgba(255, 255, 255, 0.3) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)
+    );
+}
+
+.vf-safe {
+  position: absolute;
+  inset: 7%;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+.vf-cross {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  opacity: 0.85;
+  background:
+    linear-gradient(#fff, #fff) center / 1.5px 100% no-repeat,
+    linear-gradient(#fff, #fff) center / 100% 1.5px no-repeat;
+}
+
+.vf-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+}
+
+.vf-tl { top: 12px; left: 12px; border-top-width: 2px; border-left-width: 2px; }
+.vf-tr { top: 12px; right: 12px; border-top-width: 2px; border-right-width: 2px; }
+.vf-bl { bottom: 12px; left: 12px; border-bottom-width: 2px; border-left-width: 2px; }
+.vf-br { bottom: 12px; right: 12px; border-bottom-width: 2px; border-right-width: 2px; }
+
+.vf-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+@media (min-width: 640px) {
+  .vf-text { font-size: 12px; }
+  .vf-corner { width: 30px; height: 30px; }
+  .vf-tl { top: 18px; left: 18px; }
+  .vf-tr { top: 18px; right: 18px; }
+  .vf-bl { bottom: 18px; left: 18px; }
+  .vf-br { bottom: 18px; right: 18px; }
+}
+
+.vf-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #7f1d1d;
+}
+
+.vf-dot.is-rec {
+  background: #ef4444;
+  box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.8);
+  animation: rec-blink 1.2s steps(2, start) infinite;
+}
+
+@keyframes rec-blink {
+  50% { opacity: 0.25; }
+}
+
+/* tap-to-focus square */
+.vf-focus {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border: 2px solid #ffe066;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(255, 224, 102, 0.5);
+  animation: vf-focus 0.9s ease-out forwards;
+}
+
+@keyframes vf-focus {
+  0% { transform: scale(1.6); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+/* =========================================
+   16. REELS (always turning: slow when paused, fast when playing),
+       BEAM TUNING, PAINT ISOLATION
+   ========================================= */
+.reel {
+  animation: reel-spin 3s linear infinite !important;
+  animation-play-state: running !important;
+}
+
+.beam-idle .dust {
+  animation-play-state: paused;
+}
+
+.beam-top {
+  background: conic-gradient(
+    from 154deg at 50% -12%,
+    transparent 0deg,
+    rgba(255, 226, 170, 0.14) 13deg,
+    rgba(255, 226, 170, 0.26) 26deg,
+    rgba(255, 226, 170, 0.14) 39deg,
+    transparent 52deg
+  );
+}
+
+.cinema-screen,
+.film-slider {
+  contain: layout paint;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel { animation: none !important; }
+  .vf-dot.is-rec, .vf-focus { animation: none; }
+}
+
+/* =========================================
+   17. TOOLTIPS (pure CSS, desktop with a real pointer)
+   ========================================= */
+@media (hover: hover) and (min-width: 769px) {
+  [data-tip] {
+    position: relative;
+  }
+
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    z-index: 60;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(8, 10, 20, 0.96);
+    color: #fff;
+    font: 600 12px/1.2 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transform: translate(-50%, 4px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+
+  /* the last button on the row: keep the tooltip inside the player */
+  [data-tip][data-tip-align='end']::after {
+    left: auto;
+    right: 0;
+    transform: translate(0, 4px);
+  }
+
+  [data-tip]:hover::after,
+  [data-tip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    transition-delay: 0.3s;
+  }
+
+  [data-tip][data-tip-align='end']:hover::after,
+  [data-tip][data-tip-align='end']:focus-visible::after {
+    transform: translate(0, 0);
+  }
+
+  /* while the volume bubble is showing, the tooltip steps aside */
+  .tip-off::after {
+    display: none;
+  }
+}
+
+/* =========================================
+   18. SETTINGS PANEL SCROLLING
+   ========================================= */
+.panel-scroll {
+  color-scheme: dark;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.panel-scan {
+  z-index: 30;
+}
+
+/* =========================================
+   19. DIRECTOR'S VIEW IN 3D (desktop). Phones get a flat viewfinder.
+   ========================================= */
+.viewfinder {
+  perspective: 900px;
+}
+
+.vf-3d {
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 3deg)) rotateY(var(--ry, -4deg));
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+
+@media (min-width: 769px) {
+  .viewfinder { perspective: 800px; }
+  .vf-safe { transform: translateZ(16px); }
+  .vf-corner { transform: translateZ(30px); }
+  .vf-cross { transform: translateZ(40px); }
+  .vf-text { transform: translateZ(24px); }
+}
+
+/* phones: a flat viewfinder (no 3D) */
+@media (max-width: 768px) {
+  .viewfinder { perspective: none; }
+  .vf-3d {
+    transform: none !important;
+    transition: none;
+    will-change: auto;
+  }
+}
+
+/* reduced motion: still 3D, just no easing animation */
+@media (prefers-reduced-motion: reduce) {
+  .vf-3d { transition: none; }
+}
+
+/* =========================================
+   20. PROJECTOR BEAM IN 3D (desktop only)
+   ========================================= */
+@media (hover: hover) and (min-width: 769px) {
+  .beam { perspective: 700px; }
+  .beam-top {
+    transform-origin: 50% 0%;
+    transform: rotateX(14deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .beam { display: none; }
+}
+
+/* =========================================
+   21. CINEMA STAGE: a very subtle 3D lean that eases flat on hover / focus / play
+   ========================================= */
+.cinema-stage {
+  transform: perspective(1000px) rotateX(1.2deg);
+  transform-origin: 50% 100%;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cinema-root:hover .cinema-stage,
+.cinema-root:focus-within .cinema-stage,
+.cinema-root.is-playing .cinema-stage {
+  transform: perspective(1000px) rotateX(0deg);
+}
+
+/* fullscreen and phones: always flat */
+.cinema-stage:fullscreen { transform: none !important; }
+.cinema-stage:-webkit-full-screen { transform: none !important; }
+
+@media (max-width: 768px) {
+  .cinema-stage {
+    transform: none !important;
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinema-stage { transition: none; }
+}
+
+/* tooltips use the page font (Inter) */
+@media (hover: hover) and (min-width: 769px) {
+  [data-tip]::after { font-family: inherit; }
+}
+
+/* =========================================
+   23. TAPE SHELF (scenes)
+   ========================================= */
+.shelf-sheet {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(120, 78, 36, 0.35), transparent 60%),
+    linear-gradient(#0c0907, #070504);
+}
+
+.tape-cell::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: 0;
+  height: 10px;
+  border-radius: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(#7a5632, #4d341c 60%, #2d1d10);
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.6);
+}
+
+.tape {
+  position: relative;
+  padding: 5px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(#2c303a, #15171d);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tape-cell:hover .tape,
+.tape-cell:focus-visible .tape {
+  transform: translateY(-6px) rotate(-1deg);
+  box-shadow: 0 14px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tape-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 2px 5px;
+  border-radius: 2px;
+  background: #efe6cf;
+  color: #2b2416;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.tape-window {
+  border: 2px solid #08080b;
+  border-radius: 2px;
+  background-color: #08080b;
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.85);
+}
+
+.tape-reels {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 5px;
+}
+
+.tape-reels i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #08080b 34%, #d9dde5 38%, #868c98 62%, #3a3f4b 66%);
+}
+
+.tape-active {
+  outline: 2px solid #fbbf24;
+  outline-offset: 1px;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.45), 0 8px 12px rgba(0, 0, 0, 0.55);
+}
+
+/* =========================================
+   24. PROJECTOR LAMP
+   ========================================= */
+.lamp {
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+}
+
+.lamp-bulb {
+  fill: #3a3320;
+  transition: fill 0.6s ease, filter 0.6s ease;
+}
+
+.lamp-fil {
+  stroke: #6b5a2e;
+  transition: stroke 0.6s ease;
+}
+
+.lamp.is-on .lamp-bulb {
+  fill: #ffd36a;
+  filter: drop-shadow(0 0 6px #f59e0b) drop-shadow(0 0 14px rgba(245, 158, 11, 0.7));
+  animation: lamp-flicker 2.4s ease-in-out infinite;
+}
+
+.lamp.is-on .lamp-fil {
+  stroke: #fff6d6;
+}
+
+@keyframes lamp-flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 0.94; }
+  50% { opacity: 0.82; }
+  53% { opacity: 0.97; }
+}
+
+/* =========================================
+   25. JOG KNOB (knurled metal dial)
+   ========================================= */
+.jog {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #14161d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.06);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: box-shadow 0.25s ease;
+}
+
+.jog:active {
+  cursor: grabbing;
+}
+
+.jog.is-active {
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.75), 0 0 20px rgba(251, 191, 36, 0.65), inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.jog-rotor {
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, #9aa1ae 0deg 5deg, #3b404c 5deg 10deg);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.6);
+  transform: rotate(var(--jog-rot, 0deg));
+}
+
+.jog-cap {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #f3f4f6, #b4bac6 38%, #5b616e 78%, #2a2e38);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.jog-dot {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 5px rgba(251, 191, 36, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tape-cell:hover .tape,
+  .tape-cell:focus-visible .tape { transform: none; }
+  .lamp.is-on .lamp-bulb { animation: none; }
+}
+
+/* =========================================
+   26. MOBILE: thin progress bar instead of the filmstrip (phones only)
+   The desktop filmstrip is untouched. On phones the seek bar becomes a slim,
+   YouTube-style line with a glowing amber playhead dot.
+   ========================================= */
+@media (max-width: 768px) {
+  /* the slider: an 8px physical groove (dark inner shadow) with rounded ends */
+  .film-slider {
+    height: 8px;
+    margin: 14px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    overflow: visible;
+    contain: none;
+    background: linear-gradient(#04050a, #0e1018);
+    box-shadow:
+      inset 0 2px 4px rgba(0, 0, 0, 0.9),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+      0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  /* invisible, taller touch area around the groove (about 28px) */
+  .film-slider::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -10px;
+    bottom: -10px;
+  }
+
+  /* no sprocket holes, no Mux frames */
+  .sprockets {
+    display: none;
+  }
+
+  .film-track > :not(.film-dim) {
+    display: none !important;
+  }
+
+  /* the track: 8px (overrides the inline tile height); overflow stays visible so the glow can spill out */
+  .film-track {
+    height: 8px !important;
+    margin: 0;
+    border-radius: 9999px;
+    overflow: visible;
+  }
+
+  /* glowing amber fill, driven by the v10 slider's --media-slider-fill */
+  .film-track::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--media-slider-fill, 0%);
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #b45309, #f59e0b 35%, #fde68a 55%, #f59e0b 75%, #b45309);
+    background-size: 200% 100%;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.65);
+  }
+
+  /* groove shading drawn over the fill, so the bar looks recessed */
+  .film-track::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    pointer-events: none;
+    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.55), inset 0 -1px 1px rgba(255, 255, 255, 0.14);
+  }
+
+  /* unwatched part stays dimmed */
+  .film-dim {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0 9999px 9999px 0;
+  }
+
+  /* the playhead: a 3D knob with a glowing border and an inner shadow, sitting on top of the bar */
+  .film-gate {
+    top: 50%;
+    bottom: auto;
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    margin-top: -9px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 214, 120, 0.95);
+    background: radial-gradient(circle at 35% 30%, #fff7dc 0%, #fbbf24 40%, #b45309 100%);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 0 12px 3px rgba(245, 158, 11, 0.75),
+      0 3px 5px rgba(0, 0, 0, 0.6),
+      inset 0 -3px 4px rgba(120, 53, 15, 0.65),
+      inset 0 2px 2px rgba(255, 255, 255, 0.7);
+    transition: transform 0.15s ease;
+  }
+
+  .film-slider:active .film-gate {
+    transform: scale(1.15);
+  }
+
+  .film-gate:focus-visible {
+    width: 22px;
+    height: 22px;
+    margin-left: -11px;
+    margin-top: -11px;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+
+  /* the glow flows along the bar and pulses while the film plays */
+  .cinema-root.is-playing .film-track::before {
+    animation: bar-flow 2.4s linear infinite, bar-glow 1.8s ease-in-out infinite;
+  }
+
+  /* =========================================
+     27. MOBILE: a more compact tape shelf
+     ========================================= */
+  .shelf-sheet {
+    padding: 1rem;
+  }
+
+  .tape {
+    padding: 3px;
+  }
+
+  .tape-label {
+    padding: 1px 3px;
+    font-size: 7px;
+  }
+
+  .tape-reels i {
+    width: 6px;
+    height: 6px;
+  }
+}
+
+/* =========================================
+   28. PROGRESS BAR GLOW + HOVER/HOLD PREVIEW
+   ========================================= */
+@keyframes bar-flow {
+  from { background-position: 0% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes bar-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+  50% { box-shadow: 0 0 16px 2px rgba(251, 191, 36, 0.85); }
+}
+
+/* the hover/hold preview (thumbnail + timestamp) fades in and out */
+.preview-fade {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.preview-fade.is-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-fade { transition: none; }
+  .cinema-root.is-playing .film-track::before { animation: none; }
+}
+
+/* =========================================================================
+   29. 3D PLASTIC CONSOLE
+   The player is a physical console: a thick plastic bezel with a recessed
+   screen, a raised control deck, tactile buttons, a metal jog dial and an LED
+   playhead. Pure CSS (box-shadow + gradients), no images, no libraries.
+   Light comes from the top-left: highlights top-left, shadows bottom-right.
+   ========================================================================= */
+
+/* ---------- the casing (bezel) ---------- */
+.cinema-stage {
+  --bezel: 16px;
+  padding: var(--bezel);
+  border: 0;
+  border-radius: 26px;
+  background: linear-gradient(145deg, #4d515c 0%, #2e3139 36%, #1f2127 68%, #15161b 100%);
+  box-shadow:
+    inset 2px 2px 1px rgba(255, 255, 255, 0.3),
+    inset -2px -3px 2px rgba(0, 0, 0, 0.7),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.1),
+    0 16px 36px rgba(0, 0, 0, 0.6),
+    0 36px 70px rgba(0, 0, 0, 0.4);
+}
+
+/* light skimming across the plastic (sits under the screen and deck, so only the bezel catches it) */
+.cinema-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 16%, transparent 34%),
+    linear-gradient(315deg, rgba(0, 0, 0, 0.3) 0%, transparent 30%);
+}
+
+/* ---------- the recessed screen ---------- */
+.cinema-screen {
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px #07080b,
+    0 0 0 3px rgba(255, 255, 255, 0.07),
+    0 3px 0 3px rgba(255, 255, 255, 0.05),
+    0 -2px 4px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* inner shadow + a glint on the glass, drawn above the picture */
+.cinema-screen::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 21;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 26%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.9),
+    inset 0 10px 22px rgba(0, 0, 0, 0.7),
+    inset 0 -4px 10px rgba(0, 0, 0, 0.45),
+    inset 8px 0 14px -6px rgba(0, 0, 0, 0.5),
+    inset -8px 0 14px -6px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- the control deck (a raised panel attached to the console) ---------- */
+.deck {
+  margin-top: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 22%),
+    linear-gradient(180deg, #2b2e36 0%, #1d1f26 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 2px 0 0 rgba(255, 255, 255, 0.05),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.07),
+    0 8px 14px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- tactile plastic buttons: raised, they sink when pressed ---------- */
+.deck button[class*='min-h-11'] {
+  position: relative;
+  color: #e9ecf2;
+  border: 1px solid rgba(0, 0, 0, 0.65);
+  background: linear-gradient(180deg, #4b4f5a 0%, #353840 48%, #2b2d34 52%, #25272d 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 1px 0 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.45),
+    inset -1px 0 0 rgba(0, 0, 0, 0.25),
+    0 3px 0 #131418,
+    0 6px 9px rgba(0, 0, 0, 0.55);
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.15s ease;
+}
+
+.deck button[class*='min-h-11']:hover {
+  background: linear-gradient(180deg, #575b67 0%, #3d4049 48%, #32343c 52%, #2b2d34 100%);
+}
+
+/* pressed / switched on: pushed in, with a small LED lit in the corner */
+.deck button[class*='min-h-11']:active,
+.deck button[class*='min-h-11'][aria-pressed='true'],
+.deck button[class*='min-h-11'][aria-expanded='true'] {
+  transform: translateY(3px);
+  background: linear-gradient(180deg, #1c1e24 0%, #272a31 100%);
+  box-shadow:
+    inset 0 3px 6px rgba(0, 0, 0, 0.8),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 #131418,
+    0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.deck button[class*='min-h-11'][aria-pressed='true'],
+.deck button[class*='min-h-11'][aria-expanded='true'] {
+  color: #fde68a;
+}
+
+.deck button[class*='min-h-11'][aria-pressed='true']::before,
+.deck button[class*='min-h-11'][aria-expanded='true']::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 6px 1px #f59e0b;
+}
+
+/* the main PROJECT / PAUSE key: amber plastic */
+.deck button[class*='min-h-11'][data-tip^='Play'],
+.deck button[class*='min-h-11'][data-tip^='Pause'] {
+  color: #2a1700;
+  border-color: rgba(60, 30, 0, 0.85);
+  background: linear-gradient(180deg, #ffc84a 0%, #f59e0b 52%, #d97706 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -2px 0 rgba(120, 53, 15, 0.6),
+    0 3px 0 #92400e,
+    0 6px 10px rgba(0, 0, 0, 0.55),
+    0 0 18px rgba(245, 158, 11, 0.35);
+}
+
+.deck button[class*='min-h-11'][data-tip^='Play']:hover,
+.deck button[class*='min-h-11'][data-tip^='Pause']:hover {
+  background: linear-gradient(180deg, #ffd466 0%, #fbab1c 52%, #e08208 100%);
+}
+
+.deck button[class*='min-h-11'][data-tip^='Play']:active,
+.deck button[class*='min-h-11'][data-tip^='Pause']:active {
+  background: linear-gradient(180deg, #d97706 0%, #e58a0a 100%);
+  box-shadow:
+    inset 0 3px 6px rgba(80, 35, 0, 0.7),
+    0 0 0 #92400e,
+    0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+/* ---------- the reel and volume slider sit in the plastic too ---------- */
+.deck .reel {
+  background: radial-gradient(circle, #0b0d12 55%, #1a1d24 100%);
+  box-shadow: 0 2px 0 #0d0e12, 0 4px 6px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.deck-range {
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.85), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.deck-range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #121317;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #c8cdd6 40%, #6b7280);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.65), 0 0 8px rgba(245, 158, 11, 0.55);
+}
+
+.deck-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #121317;
+  background: radial-gradient(circle at 35% 30%, #ffffff, #c8cdd6 40%, #6b7280);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.65), 0 0 8px rgba(245, 158, 11, 0.55);
+}
+
+/* ---------- the jog dial: a knurled metal knob in a socket ---------- */
+.jog {
+  isolation: isolate;
+  background: radial-gradient(circle, #0b0c10 0 62%, #1b1e25 63%);
+  border: 1px solid rgba(0, 0, 0, 0.85);
+  box-shadow:
+    inset 0 3px 6px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.12),
+    0 3px 0 #101116,
+    0 6px 8px rgba(0, 0, 0, 0.55);
+}
+
+.jog-rotor {
+  z-index: 1;
+  background: repeating-conic-gradient(from 0deg, #d5d9e2 0deg 2.5deg, #7b8190 2.5deg 4deg, #353943 4deg 5deg);
+  box-shadow: 0 3px 4px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* a fixed specular sheen over the turning ridges, like light on brushed metal */
+.jog::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 200deg,
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 255, 255, 0.38) 40deg,
+    rgba(255, 255, 255, 0) 90deg,
+    rgba(255, 255, 255, 0) 180deg,
+    rgba(255, 255, 255, 0.22) 230deg,
+    rgba(255, 255, 255, 0) 280deg
+  );
+}
+
+.jog-cap {
+  z-index: 3;
+  background: radial-gradient(circle at 32% 26%, #ffffff, #c3c9d4 36%, #5b616e 76%, #262a33);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 2px 3px rgba(0, 0, 0, 0.75);
+}
+
+.jog-dot {
+  z-index: 4;
+}
+
+/* ---------- desktop: filmstrip groove + LED playhead + screws and a printed plate ---------- */
+@media (min-width: 769px) {
+  .cinema-stage {
+    background:
+    linear-gradient(38deg, transparent 44%, #0b0c10 45% 55%, transparent 56%) 2px 2px / 12px 12px no-repeat,
+    radial-gradient(circle at 50% 40%, #d3d7df 0 1.5px, #6a6f7b 2.3px, #1a1b20 3.3px, transparent 3.7px) 2px 2px / 12px 12px no-repeat,
+    linear-gradient(38deg, transparent 44%, #0b0c10 45% 55%, transparent 56%) calc(100% - 2px) 2px / 12px 12px no-repeat,
+    radial-gradient(circle at 50% 40%, #d3d7df 0 1.5px, #6a6f7b 2.3px, #1a1b20 3.3px, transparent 3.7px) calc(100% - 2px) 2px / 12px 12px no-repeat,
+    linear-gradient(38deg, transparent 44%, #0b0c10 45% 55%, transparent 56%) 2px calc(100% - 2px) / 12px 12px no-repeat,
+    radial-gradient(circle at 50% 40%, #d3d7df 0 1.5px, #6a6f7b 2.3px, #1a1b20 3.3px, transparent 3.7px) 2px calc(100% - 2px) / 12px 12px no-repeat,
+    linear-gradient(38deg, transparent 44%, #0b0c10 45% 55%, transparent 56%) calc(100% - 2px) calc(100% - 2px) / 12px 12px no-repeat,
+    radial-gradient(circle at 50% 40%, #d3d7df 0 1.5px, #6a6f7b 2.3px, #1a1b20 3.3px, transparent 3.7px) calc(100% - 2px) calc(100% - 2px) / 12px 12px no-repeat,
+      linear-gradient(145deg, #4d515c 0%, #2e3139 36%, #1f2127 68%, #15161b 100%);
+  }
+
+  /* printed model plate on the top bezel */
+  .cinema-stage::after {
+    content: 'CINEMA UI · PROJECTOR DECK MC-1';
+    content: 'CINEMA UI · PROJECTOR DECK MC-1' / '';
+    position: absolute;
+    top: 4px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    pointer-events: none;
+    font: 800 7.5px/8px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.4em;
+    color: rgba(255, 255, 255, 0.3);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12), 0 -1px 0 rgba(0, 0, 0, 0.7);
+  }
+
+  .film-slider {
+    background: #05060a;
+    border: 1px solid rgba(0, 0, 0, 0.9);
+    border-radius: 10px;
+    box-shadow:
+      inset 0 4px 10px rgba(0, 0, 0, 0.95),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.07),
+      0 1px 0 rgba(255, 255, 255, 0.14),
+      0 2px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  /* shading drawn over the film so the whole strip reads as a recessed channel */
+  .film-slider::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.75), inset 0 -1px 2px rgba(255, 255, 255, 0.08);
+  }
+
+  /* the LED playhead */
+  .film-gate {
+    z-index: 2;
+    background: linear-gradient(180deg, #fff8dc, #fbbf24 55%, #f59e0b);
+    box-shadow: 0 0 8px 2px rgba(255, 214, 120, 0.95), 0 0 22px 6px rgba(245, 158, 11, 0.55);
+  }
+}
+
+/* the settings panel keeps clear of the thicker bezel */
+@media (min-width: 640px) {
+  .projector-panel {
+    bottom: calc(var(--deck-h) + var(--bezel, 0px) + 12px);
+    max-height: calc(100% - var(--deck-h) - var(--bezel, 0px) - 24px);
+  }
+}
+
+/* ---------- mobile: a thinner bezel, but the same tactile feel ---------- */
+@media (max-width: 768px) {
+  .cinema-stage {
+    --bezel: 6px;
+    border-radius: 18px;
+    box-shadow:
+      inset 1px 1px 1px rgba(255, 255, 255, 0.3),
+      inset -1px -2px 2px rgba(0, 0, 0, 0.65),
+      0 10px 22px rgba(0, 0, 0, 0.55);
+  }
+
+  .cinema-screen {
+    border-radius: 11px;
+    box-shadow: 0 0 0 1.5px #07080b, 0 2px 0 1.5px rgba(255, 255, 255, 0.07);
+  }
+
+  .cinema-screen::after {
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.9),
+      inset 0 6px 14px rgba(0, 0, 0, 0.65),
+      inset 0 -3px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .deck {
+    margin-top: 8px;
+    border-radius: 14px;
+  }
+
+  /* the thin progress bar: a deeper groove and an LED playhead seated in a plastic ring */
+  .film-slider {
+    box-shadow:
+      inset 0 3px 5px rgba(0, 0, 0, 0.95),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.1),
+      0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  .film-gate {
+    border: 2px solid #3a3d46;
+    background: radial-gradient(circle at 50% 45%, #fffbe6 0%, #ffd36a 34%, #f59e0b 66%, #92400e 100%);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.7),
+      0 0 12px 3px rgba(245, 158, 11, 0.8),
+      0 3px 4px rgba(0, 0, 0, 0.65),
+      inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* ---------- fullscreen: the video takes the whole screen, so the casing steps aside ---------- */
+.cinema-stage:fullscreen {
+  padding: 0;
+  box-shadow: none;
+}
+.cinema-stage:fullscreen::before,
+.cinema-stage:fullscreen::after {
+  display: none;
+}
+.cinema-stage:fullscreen .cinema-screen {
+  border-radius: 0;
+  box-shadow: none;
+}
+.cinema-stage:fullscreen .cinema-screen::after {
+  display: none;
+}
+.cinema-stage:fullscreen .deck {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cinema-stage:-webkit-full-screen {
+  padding: 0;
+  box-shadow: none;
+}
+.cinema-stage:-webkit-full-screen::before,
+.cinema-stage:-webkit-full-screen::after {
+  display: none;
+}
+.cinema-stage:-webkit-full-screen .cinema-screen {
+  border-radius: 0;
+  box-shadow: none;
+}
+.cinema-stage:-webkit-full-screen .cinema-screen::after {
+  display: none;
+}
+.cinema-stage:-webkit-full-screen .deck {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* =========================================================================
+   30. NEW FEATURES: phone lamp + jog dial, language select, toast, chapter list
+   ========================================================================= */
+
+/* ---------- projector lamp on phones: a heartbeat while the film plays, dim when paused ---------- */
+.lamp.lamp-bar {
+  width: 26px;
+  height: 26px;
+}
+
+.lamp-bar svg {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes lamp-heartbeat {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #f59e0b) drop-shadow(0 0 8px rgba(245, 158, 11, 0.5));
+  }
+  14% {
+    transform: scale(1.14);
+    filter: drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 18px rgba(245, 158, 11, 0.9));
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.09);
+    filter: drop-shadow(0 0 7px #fbbf24) drop-shadow(0 0 14px rgba(245, 158, 11, 0.75));
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+.lamp-bar.is-on .lamp-bulb {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lamp-heartbeat 1.2s ease-in-out infinite;
+}
+
+/* ---------- the phone jog dial: 32px, still a knurled metal knob (with a 44px touch area) ---------- */
+.jog.jog-sm {
+  width: 32px;
+  height: 32px;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.12),
+    0 2px 0 #101116,
+    0 4px 6px rgba(0, 0, 0, 0.5);
+}
+
+.jog-sm .jog-rotor {
+  inset: 2px;
+}
+
+.jog-sm::before {
+  inset: 2px;
+}
+
+.jog-sm .jog-cap {
+  inset: 5px;
+}
+
+.jog-sm .jog-dot {
+  top: 4px;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+}
+
+.jog-sm::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+/* ---------- language select ---------- */
+.lang-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 2.25rem 0 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23fcd34d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.lang-select option {
+  background: #12141a;
+  color: #fff;
+}
+
+/* ---------- toast ("Link copied!") ---------- */
+.toast-pop {
+  animation: toast-in 0.25s ease-out both;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- chapter index (list view inside the tape shelf) ---------- */
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+}
+
+.chapter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(#262a32, #16181e);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 3px 0 #0b0c10;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.chapter-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.chapter-row:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7), 0 1px 0 #0b0c10;
+}
+
+.chapter-row.is-current {
+  outline: 2px solid #fbbf24;
+  outline-offset: 1px;
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 3px 0 #0b0c10;
+}
+
+.chapter-no {
+  padding: 3px 7px;
+  border-radius: 3px;
+  background: #efe6cf;
+  color: #2b2416;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.chapter-title {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chapter-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fcd34d;
+}
+/* ---------- calm on request: the new motion, plus the older Tailwind fade-ins ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .lamp-bar.is-on .lamp-bulb { animation: none; }
+  .toast-pop { animation: none; }
+  [class*="animate-[fadeIn"] { animation: none !important; }
 }

@@ -1811,9 +1811,82 @@
   font-variant-numeric: tabular-nums;
   color: #fcd34d;
 }
+
 /* ---------- calm on request: the new motion, plus the older Tailwind fade-ins ---------- */
 @media (prefers-reduced-motion: reduce) {
   .lamp-bar.is-on .lamp-bulb { animation: none; }
   .toast-pop { animation: none; }
   [class*="animate-[fadeIn"] { animation: none !important; }
+}
+
+/* =========================================================================
+   31. STABILITY: scope bars (no layout animation) + a stable deck layer
+   ========================================================================= */
+
+/* 21:9 "SCOPE": the screen box stays 16:9, two black bars scale in over it. Transform-only, so it never triggers layout. */
+.scope-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 17;
+  height: 11.9%;
+  background: #000;
+  pointer-events: none;
+  transform: scaleY(0);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scope-bar-top {
+  top: 0;
+  transform-origin: top;
+}
+
+.scope-bar-bottom {
+  bottom: 0;
+  transform-origin: bottom;
+}
+
+.scope-bar.is-on {
+  transform: scaleY(1);
+}
+
+/* the deck gets its own compositor layer: video frames and overlays repainting above it no longer repaint the deck */
+.deck {
+  transform: translateZ(0);
+}
+
+/* =========================================================================
+   32. MOBILE FULLSCREEN: keep the deck and the top row clear of the native browser UI
+   (needs viewport-fit=cover in layout.tsx, otherwise every env() below is 0)
+   ========================================================================= */
+.cinema-stage:fullscreen .deck {
+  z-index: 50;
+  padding-top: 2.25rem;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.cinema-stage:-webkit-full-screen .deck {
+  z-index: 50;
+  padding-top: 2.25rem;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.cinema-stage:fullscreen .screen-top {
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+.cinema-stage:-webkit-full-screen .screen-top {
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope-bar { transition: none; }
 }

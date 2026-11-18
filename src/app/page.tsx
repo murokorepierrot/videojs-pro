@@ -516,160 +516,7 @@ function JogKnob({
   );
 }
 
-
-/* ---- Stable render-props for the v10 deck buttons (identity never changes, so they are never re-created) ---- */
-const renderPlayButton = (props: any, state: any) => (
-<button
-  {...props}
-  data-tip={state.paused ? 'Play (Space)' : 'Pause (Space)'}
-  className="inline-flex flex-none items-center justify-center gap-2 min-h-11 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95 touch-manipulation"
->
-  {state.paused ? <PlayIcon /> : <PauseIcon />}
-  {state.paused ? 'Project' : 'Pause'}
-</button>
-                );
-
-const renderMuteButton = (props: any, state: any) => (
-<button
-  {...props}
-  data-tip={state.muted ? 'Unmute (M)' : 'Mute (M)'}
-  className={`${deckBtn} hidden md:inline-flex ${deckBtnIdle}`}
->
-  {state.muted ? '🔇' : '🔊'}
-  <span className="hidden sm:inline">{state.muted ? 'MUTED' : 'AUDIO'}</span>
-</button>
-                );
-
-const renderFullscreenButton = (props: any, state: any) => (
-<button
-  {...props}
-  data-action="fullscreen"
-  data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-  data-tip-align="end"
-  className={`${deckBtn} ${deckBtnIdle}`}
->
-  {state.fullscreen ? <ExitFsIcon /> : <EnterFsIcon />}
-</button>
-                );
-
-/* ---- Memoised deck controls: each one re-renders only when ITS OWN props change ---- */
-const ScopeToggle = React.memo(function ScopeToggle({ scope, onToggle }: { scope: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={scope}
-      data-tip={scope ? 'Switch to 16:9 flat' : 'Switch to 21:9 scope'}
-      className={`${deckBtn} hidden md:inline-flex ${scope ? 'bg-blue-500/20 text-blue-200 border-blue-400/60' : deckBtnIdle}`}
-    >
-      {scope ? '21:9 SCOPE' : '16:9 FLAT'}
-    </button>
-  );
-});
-
-const LightsToggle = React.memo(function LightsToggle({ lightsOff, onToggle }: { lightsOff: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={lightsOff}
-      aria-label={lightsOff ? 'Lights on' : 'Lights off'}
-      data-tip={lightsOff ? 'Lights on' : 'Lights off'}
-      className={`${deckBtn} hidden md:inline-flex ${lightsOff ? deckBtnOn : deckBtnIdle}`}
-    >
-      {lightsOff ? '💡' : '🌑'}
-      <span>{lightsOff ? 'LIGHTS' : 'DARK'}</span>
-    </button>
-  );
-});
-
-const CaptionsToggle = React.memo(function CaptionsToggle({ ccOn, onToggle }: { ccOn: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={ccOn}
-      aria-label={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
-      data-tip={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
-      className={`${deckBtn} hidden md:inline-flex ${ccOn ? deckBtnOn : deckBtnIdle}`}
-    >
-      <span className="font-black tracking-tight">CC</span>
-    </button>
-  );
-});
-
-/** The gear. The speed badge is an absolutely-positioned corner pill, so changing speed never shifts the deck layout. */
-const SettingsButton = React.memo(function SettingsButton({
-  open,
-  rate,
-  onToggle,
-  buttonRef,
-}: {
-  open: boolean;
-  rate: number;
-  onToggle: () => void;
-  buttonRef: React.Ref<HTMLButtonElement>;
-}) {
-  return (
-    <button
-      ref={buttonRef}
-      type="button"
-      onClick={onToggle}
-      aria-haspopup="dialog"
-      aria-expanded={open}
-      aria-label="Projector settings"
-      data-tip="Settings"
-      className={`${deckBtn} ${open ? deckBtnOn : deckBtnIdle}`}
-    >
-      <GearIcon />
-      <span className="md:hidden text-xs font-bold">More</span>
-      {rate !== 1 && (
-        <span className="absolute -right-1.5 -top-1.5 rounded bg-amber-500 px-1 text-[10px] font-bold leading-4 text-black tabular-nums shadow">
-          {rate}×
-        </span>
-      )}
-    </button>
-  );
-});
-
-const RatePicker = React.memo(function RatePicker({
-  rate,
-  label,
-  onPick,
-}: {
-  rate: number;
-  label: string;
-  onPick: (r: number) => void;
-}) {
-  return (
-    <div role="radiogroup" aria-label={label} className="relative grid grid-cols-4 rounded-xl border border-white/10 bg-black/40 p-1">
-      <span
-        aria-hidden="true"
-        className={`absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.55)] transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] ${
-          RATES.includes(rate) ? 'opacity-100' : 'opacity-0'
-        }`}
-        style={{ transform: `translateX(${Math.max(0, RATES.indexOf(rate)) * 100}%)` }}
-      />
-      {RATES.map((r) => (
-        <button
-          key={r}
-          type="button"
-          role="radio"
-          aria-checked={r === rate}
-          data-autofocus={r === rate || (!RATES.includes(rate) && r === 1) ? true : undefined}
-          onClick={() => onPick(r)}
-          className={`relative z-10 min-h-11 rounded-lg text-sm font-bold tabular-nums transition-colors ${
-            r === rate ? 'text-black' : 'text-slate-200 hover:text-white'
-          }`}
-        >
-          {r}×
-        </button>
-      ))}
-    </div>
-  );
-});
-
-function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff: React.Dispatch<React.SetStateAction<boolean>> }) {
+function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff: (v: boolean) => void }) {
   const store: any = usePlayer();
   const paused: boolean = usePlayer((s: any) => s.paused) ?? true;
   const rawTime: number = usePlayer((s: any) => (Number.isFinite(s.currentTime) ? Math.floor(s.currentTime) : 0)) ?? 0;
@@ -1063,18 +910,6 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
     showToast(ok ? t.linkCopied : `${t.copyFailed} ${link}`);
   }, [roomId, showToast, t]);
 
-  /* ----- stable handlers for the memoised deck controls ----- */
-  const toggleScope = useCallback(() => setScope((s) => !s), []);
-  const toggleLights = useCallback(() => setLightsOff((l) => !l), [setLightsOff]);
-  const toggleCc = useCallback(() => setCcOn((c) => !c), []);
-  const toggleSettings = useCallback(() => {
-    if (panelStateRef.current === 'open') closePanel();
-    else setPanel('open');
-  }, [closePanel]);
-  const pickRate = useCallback((r: number) => {
-    live.current.store.setPlaybackRate?.(r);
-  }, []);
-
   const trapTab = (e: React.KeyboardEvent) => {
     if (e.key !== 'Tab') return;
     const els = panelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), select');
@@ -1174,18 +1009,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
     mq.addEventListener('change', onMq);
     const onFs = () => {
       const d: any = document;
-      const fs = !!(d.fullscreenElement || d.webkitFullscreenElement);
-      setIsFs(fs);
-      // Touch devices: a 16:9 film belongs in landscape. Supported on Android Chrome while fullscreen; silently ignored elsewhere.
-      const orientation: any = (screen as any).orientation;
-      if (window.matchMedia('(pointer: coarse)').matches && orientation?.lock) {
-        try {
-          if (fs) orientation.lock('landscape').catch(() => {});
-          else orientation.unlock();
-        } catch {
-          /* not supported / not allowed: the layout still works in portrait */
-        }
-      }
+      setIsFs(!!(d.fullscreenElement || d.webkitFullscreenElement));
     };
     document.addEventListener('fullscreenchange', onFs);
     document.addEventListener('webkitfullscreenchange', onFs);
@@ -1350,7 +1174,9 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
 
         {/* Screen */}
         <div
-          className="cinema-screen group relative bg-black overflow-hidden aspect-video"
+          className={`cinema-screen group relative bg-black overflow-hidden transition-[aspect-ratio] duration-500 motion-reduce:transition-none ${
+            scope ? 'aspect-[21/9]' : 'aspect-video'
+          }`}
         >
           <MuxVideo
             source={{ playbackId: PLAYBACK_ID }}
@@ -1359,10 +1185,6 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
             playsInline
             className="cinema-video"
           />
-
-          {/* 21:9 scope: letterbox bars scale in (transform only). The screen box never changes size, so the deck never moves. */}
-          <div aria-hidden="true" className={`scope-bar scope-bar-top ${scope ? 'is-on' : ''}`} />
-          <div aria-hidden="true" className={`scope-bar scope-bar-bottom ${scope ? 'is-on' : ''}`} />
 
           {/* Click layer + center overlay */}
           <button
@@ -1526,7 +1348,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
           )}
 
           {/* Status + time */}
-          <div className="screen-top absolute top-2 sm:top-3 inset-x-2 sm:inset-x-3 z-20 flex items-center justify-between pointer-events-none">
+          <div className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-3 z-20 flex items-center justify-between pointer-events-none">
             <div className="flex items-center gap-2">
             <div className={`flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-white/15 transition-opacity duration-300 ${
                 director ? 'opacity-0' : 'opacity-100'
@@ -1721,13 +1543,35 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
                 </svg>
               </div>
 
-              <PlayButton render={renderPlayButton} />
+              <PlayButton
+                render={(props: any, state: any) => (
+                  <button
+                    {...props}
+                    data-tip={state.paused ? 'Play (Space)' : 'Pause (Space)'}
+                    className="inline-flex flex-none items-center justify-center gap-2 min-h-11 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95 touch-manipulation"
+                  >
+                    {state.paused ? <PlayIcon /> : <PauseIcon />}
+                    {state.paused ? 'Project' : 'Pause'}
+                  </button>
+                )}
+              />
 
               <span className="md:hidden flex-1 min-w-0 truncate font-mono text-xs tabular-nums text-slate-100">
                 {fmt(currentTime)} <span className="text-slate-400">/ {fmt(duration)}</span>
               </span>
 
-              <MuteButton render={renderMuteButton} />
+              <MuteButton
+                render={(props: any, state: any) => (
+                  <button
+                    {...props}
+                    data-tip={state.muted ? 'Unmute (M)' : 'Mute (M)'}
+                    className={`${deckBtn} hidden md:inline-flex ${deckBtnIdle}`}
+                  >
+                    {state.muted ? '🔇' : '🔊'}
+                    <span className="hidden sm:inline">{state.muted ? 'MUTED' : 'AUDIO'}</span>
+                  </button>
+                )}
+              />
 
               <div className={`deck-vol relative flex items-center ${volToast !== null ? 'tip-off' : ''}`} data-tip="Volume (↑ ↓)">
                 <input
@@ -1756,15 +1600,69 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
             <div className="flex items-center gap-2">
               <JogKnob timeRef={timeRef} duration={duration} noBurn={noBurn} />
 
-              <CaptionsToggle ccOn={ccOn} onToggle={toggleCc} />
+              <button
+                type="button"
+                onClick={() => setCcOn((c) => !c)}
+                aria-pressed={ccOn}
+                aria-label={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+                data-tip={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+                className={`${deckBtn} hidden md:inline-flex ${ccOn ? deckBtnOn : deckBtnIdle}`}
+              >
+                <span className="font-black tracking-tight">CC</span>
+              </button>
 
-              <ScopeToggle scope={scope} onToggle={toggleScope} />
+              <button
+                type="button"
+                onClick={() => setScope((s) => !s)}
+                aria-pressed={scope}
+                data-tip={scope ? 'Switch to 16:9 flat' : 'Switch to 21:9 scope'}
+                className={`${deckBtn} hidden md:inline-flex ${scope ? 'bg-blue-500/20 text-blue-200 border-blue-400/60' : deckBtnIdle}`}
+              >
+                {scope ? '21:9 SCOPE' : '16:9 FLAT'}
+              </button>
 
-              <LightsToggle lightsOff={lightsOff} onToggle={toggleLights} />
+              <button
+                type="button"
+                onClick={() => setLightsOff(!lightsOff)}
+                aria-pressed={lightsOff}
+                aria-label={lightsOff ? 'Lights on' : 'Lights off'}
+                data-tip={lightsOff ? 'Lights on' : 'Lights off'}
+                className={`${deckBtn} hidden md:inline-flex ${lightsOff ? deckBtnOn : deckBtnIdle}`}
+              >
+                {lightsOff ? '💡' : '🌑'}
+                <span>{lightsOff ? 'LIGHTS' : 'DARK'}</span>
+              </button>
 
-              <SettingsButton open={panel === 'open'} rate={rate} onToggle={toggleSettings} buttonRef={gearBtnRef} />
+              <button
+                ref={gearBtnRef}
+                type="button"
+                onClick={() => (panel === 'open' ? closePanel() : setPanel('open'))}
+                aria-haspopup="dialog"
+                aria-expanded={panel === 'open'}
+                aria-label="Projector settings"
+                data-tip="Settings"
+                className={`${deckBtn} ${panel === 'open' ? deckBtnOn : deckBtnIdle}`}
+              >
+                <GearIcon />
+                <span className="md:hidden text-xs font-bold">More</span>
+                {rate !== 1 && (
+                  <span className="rounded bg-amber-500 px-1 text-[10px] font-bold text-black tabular-nums">{rate}×</span>
+                )}
+              </button>
 
-              <FullscreenButton render={renderFullscreenButton} />
+              <FullscreenButton
+                render={(props: any, state: any) => (
+                  <button
+                    {...props}
+                    data-action="fullscreen"
+                    data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
+                    data-tip-align="end"
+                    className={`${deckBtn} ${deckBtnIdle}`}
+                  >
+                    {state.fullscreen ? <ExitFsIcon /> : <EnterFsIcon />}
+                  </button>
+                )}
+              />
             </div>
           </div>
         </div>
@@ -1780,7 +1678,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
         {/* ============ PROJECTOR CONTROL PANEL (glass sheet) ============ */}
         {panel !== 'closed' && (
           <div className="absolute inset-0 z-50" style={{ ['--deck-h' as any]: `${deckH}px` }}>
-            <div className="panel-scrim absolute inset-0 bg-black/45" data-state={panel} onClick={closePanel} />
+            <div className="panel-scrim absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-state={panel} onClick={closePanel} />
             <div
               ref={panelRef}
               role="dialog"
@@ -1861,7 +1759,30 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
               {/* Film speed */}
               <div className="panel-item mb-4" style={{ ['--d' as any]: '110ms' }}>
                 <p className="mb-2 text-[10px] font-mono tracking-[0.25em] uppercase text-slate-400">{t.filmSpeed}</p>
-                <RatePicker rate={rate} label={t.filmSpeed} onPick={pickRate} />
+                <div role="radiogroup" aria-label={t.filmSpeed} className="relative grid grid-cols-4 rounded-xl border border-white/10 bg-black/40 p-1">
+                  <span
+                    aria-hidden="true"
+                    className={`absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.55)] transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] ${
+                      RATES.includes(rate) ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    style={{ transform: `translateX(${Math.max(0, RATES.indexOf(rate)) * 100}%)` }}
+                  />
+                  {RATES.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      role="radio"
+                      aria-checked={r === rate}
+                      data-autofocus={r === rate || (!RATES.includes(rate) && r === 1) ? true : undefined}
+                      onClick={() => store.setPlaybackRate?.(r)}
+                      className={`relative z-10 min-h-11 rounded-lg text-sm font-bold tabular-nums transition-colors ${
+                        r === rate ? 'text-black' : 'text-slate-200 hover:text-white'
+                      }`}
+                    >
+                      {r}×
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Scenes */}
@@ -2051,7 +1972,7 @@ export default function Home() {
         <div
           onClick={() => setLightsOff(false)}
           aria-hidden="true"
-          className="fixed inset-0 z-30 bg-black/95 cursor-pointer animate-[fadeIn_.6s_ease]"
+          className="fixed inset-0 z-30 bg-black/95 backdrop-blur-xl cursor-pointer animate-[fadeIn_.6s_ease]"
         />
       )}
 

@@ -1811,9 +1811,249 @@
   font-variant-numeric: tabular-nums;
   color: #fcd34d;
 }
+
 /* ---------- calm on request: the new motion, plus the older Tailwind fade-ins ---------- */
 @media (prefers-reduced-motion: reduce) {
   .lamp-bar.is-on .lamp-bulb { animation: none; }
   .toast-pop { animation: none; }
   [class*="animate-[fadeIn"] { animation: none !important; }
+}
+
+/* =========================================================================
+   31. STABILITY: scope bars (no layout animation) + a stable deck layer
+   ========================================================================= */
+
+/* 21:9 "SCOPE": the screen box stays 16:9, two black bars scale in over it. Transform-only, so it never triggers layout. */
+.scope-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 17;
+  height: 11.9%;
+  background: #000;
+  pointer-events: none;
+  transform: scaleY(0);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scope-bar-top {
+  top: 0;
+  transform-origin: top;
+}
+
+.scope-bar-bottom {
+  bottom: 0;
+  transform-origin: bottom;
+}
+
+.scope-bar.is-on {
+  transform: scaleY(1);
+}
+
+/* the deck gets its own compositor layer: video frames and overlays repainting above it no longer repaint the deck */
+.deck {
+  transform: translateZ(0);
+}
+
+/* =========================================================================
+   32. MOBILE FULLSCREEN: keep the deck and the top row clear of the native browser UI
+   (needs viewport-fit=cover in layout.tsx, otherwise every env() below is 0)
+   ========================================================================= */
+.cinema-stage:fullscreen .deck {
+  z-index: 50;
+  padding-top: 2.25rem;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.cinema-stage:-webkit-full-screen .deck {
+  z-index: 50;
+  padding-top: 2.25rem;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.cinema-stage:fullscreen .screen-top {
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+.cinema-stage:-webkit-full-screen .screen-top {
+  top: max(0.75rem, env(safe-area-inset-top));
+  left: max(0.5rem, env(safe-area-inset-left));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope-bar { transition: none; }
+}
+
+/* =========================================================================
+   33. FULLSCREEN: the whole deck fades away when idle (set via data-hidden in page.tsx)
+   ========================================================================= */
+.cinema-stage:fullscreen .deck[data-hidden],
+.cinema-stage:-webkit-full-screen .deck[data-hidden] {
+  opacity: 0;
+  transform: translateY(35%);
+  pointer-events: none;
+}
+
+/* =========================================================================
+   34. FILM STOCKS + FILM NOIR (Easter egg: press C three times)
+   ========================================================================= */
+.cinema-video {
+  transition: filter 0.5s ease;
+}
+
+.cinema-screen[data-stock='noir']        .cinema-video { filter: grayscale(1) contrast(1.3) brightness(0.92); }
+.cinema-screen[data-stock='sepia']       .cinema-video { filter: sepia(0.85) contrast(1.05) saturate(1.1); }
+.cinema-screen[data-stock='technicolor'] .cinema-video { filter: saturate(1.55) contrast(1.12) hue-rotate(-6deg); }
+.cinema-screen[data-stock='faded']       .cinema-video { filter: contrast(0.88) saturate(0.7) brightness(1.06) sepia(0.12); }
+
+.stock-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.stock-opt {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-opt:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stock-opt[aria-checked='true'] {
+  background: #f59e0b;
+  color: #1a1000;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.5);
+}
+
+/* noir extras: a dark vignette that breathes like an old projector lamp, and heavier grain */
+.noir-vignette {
+  background: radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.7) 100%);
+  animation: noir-flicker 3.4s ease-in-out infinite;
+}
+
+.noir-grain {
+  opacity: 0.2;
+}
+
+@keyframes noir-flicker {
+  0%, 100% { opacity: 1; }
+  46% { opacity: 0.93; }
+  50% { opacity: 0.85; }
+  54% { opacity: 0.96; }
+}
+
+/* the title card */
+.noir-card {
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2) 70%, transparent);
+  animation: noir-card 2.8s ease both;
+}
+
+@keyframes noir-card {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.noir-title {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.4rem, 5vw, 3.2rem);
+  letter-spacing: 0.4em;
+  text-indent: 0.4em;
+  text-transform: uppercase;
+  color: #f4f0e6;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9);
+}
+
+.noir-sub {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(244, 240, 230, 0.78);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+
+.noir-rule {
+  display: block;
+  width: min(60%, 260px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(244, 240, 230, 0.85), transparent);
+  animation: noir-rule 0.9s ease-out both;
+}
+
+@keyframes noir-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* =========================================================================
+   35. CHAPTER NOTCHES, TILT-REACTIVE PLASTIC, OLDER-BROWSER FALLBACKS
+   ========================================================================= */
+.chapter-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 2px;
+  margin-left: -1px;
+  background: #fde68a;
+  box-shadow: 0 0 6px rgba(253, 230, 138, 0.8);
+  pointer-events: none;
+}
+
+/* the highlight on the casing follows --lx / --ly (set from the pointer on desktop and the gyroscope on phones) */
+.cinema-stage::before {
+  background:
+    radial-gradient(circle at var(--lx, 22%) var(--ly, 12%), rgba(255, 255, 255, 0.24), transparent 44%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 16%, transparent 34%),
+    linear-gradient(315deg, rgba(0, 0, 0, 0.3) 0%, transparent 30%);
+}
+
+/* browsers without backdrop-filter get a more opaque glass instead of an unreadable panel */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .projector-panel,
+  .panel-head,
+  .caption-text {
+    background-color: rgba(8, 10, 20, 0.96);
+  }
+}
+
+/* browsers without aspect-ratio keep a 16:9 screen */
+@supports not (aspect-ratio: 16 / 9) {
+  .cinema-screen {
+    height: 0;
+    padding-bottom: 56.25%;
+  }
+  .cinema-stage:fullscreen .cinema-screen,
+  .cinema-stage:-webkit-full-screen .cinema-screen {
+    padding-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .noir-vignette,
+  .noir-card,
+  .noir-rule {
+    animation: none;
+  }
 }

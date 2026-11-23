@@ -21,7 +21,10 @@ import {
   PlayButton,
   StatusAnnouncer,
   TimeSlider,
+  chaptersTrack,
   createPlayer,
+  useActiveTextCues,
+  useTextCues,
 } from '@videojs/react';
 import { videoFeatures } from '@videojs/react/video';
 import { MuxVideo } from '@videojs/react/media/mux-video';
@@ -35,6 +38,27 @@ const { Player, usePlayer } = createPlayer({ features: videoFeatures });
 const RATES = [0.5, 1, 1.5, 2];
 const PREVIEW_W = 160;
 const SCENES = 12;
+const FILM_TITLE = 'Cinema UI · Projector Deck';
+
+// Chapters (seconds). These titles are PLACEHOLDERS: replace them with the real scenes of your film.
+// They feed the filmstrip notches, the live chapter chip, the chapter list and the tactile detents.
+const CHAPTERS = [
+  { startTime: 0, endTime: 15, text: 'Opening' },
+  { startTime: 15, endTime: 30, text: 'The shore' },
+  { startTime: 30, endTime: 48, text: 'Castle walls' },
+  { startTime: 48, endTime: 66, text: 'The highlands' },
+  { startTime: 66, endTime: 80, text: 'Portraits' },
+  { startTime: 80, endTime: 93, text: 'Closing' },
+];
+
+type Stock = 'neutral' | 'noir' | 'sepia' | 'technicolor' | 'faded';
+const STOCKS: { id: Stock; label: string }[] = [
+  { id: 'neutral', label: 'Neutral' },
+  { id: 'noir', label: 'Noir' },
+  { id: 'sepia', label: 'Sepia' },
+  { id: 'technicolor', label: 'Technicolor' },
+  { id: 'faded', label: 'Faded' },
+];
 // Rounded so server and browser render identical SVG (avoids hydration warnings).
 const REEL = [0, 60, 120, 180, 240, 300].map((a) => ({
   cx: +(18 + 10 * Math.cos((a * Math.PI) / 180)).toFixed(2),
@@ -81,6 +105,9 @@ const EN = {
   soundOn: 'Sound on',
   muted: 'Muted',
   filmSpeed: 'Film speed',
+  filmStock: 'Film stock',
+  tactile: 'Tactile feedback',
+  tactileHint: 'Vibration and a soft click at chapter changes',
   scenes: 'Scenes',
   tapeShelf: 'Tape shelf',
   open: 'Open',
@@ -114,6 +141,9 @@ const TRANSLATIONS: Record<Lang, Strings> = {
     soundOn: 'Son activé',
     muted: 'Son coupé',
     filmSpeed: 'Vitesse du film',
+    filmStock: 'Pellicule',
+    tactile: 'Retour tactile',
+    tactileHint: 'Vibration et léger clic aux changements de chapitre',
     scenes: 'Scènes',
     tapeShelf: 'Étagère de cassettes',
     open: 'Ouvrir',
@@ -145,6 +175,9 @@ const TRANSLATIONS: Record<Lang, Strings> = {
     soundOn: 'Ijwi ririho',
     muted: 'Ijwi ryazimijwe',
     filmSpeed: 'Umuvuduko wa filime',
+    filmStock: 'Ubwoko bw’ifilime',
+    tactile: 'Ibyumvwa mu ntoki',
+    tactileHint: 'Kunyeganyega n’ijwi rito igihe igice gihindutse',
     scenes: 'Ibice',
     tapeShelf: 'Ububiko bw’amakaseti',
     open: 'Fungura',
@@ -516,7 +549,311 @@ function JogKnob({
   );
 }
 
-function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff: (v: boolean) => void }) {
+
+/* ---- Stable render-props for the v10 deck buttons (identity never changes, so they are never re-created) ---- */
+const renderPlayButton = (props: any, state: any) => (
+<button
+  {...props}
+  data-tip={state.paused ? 'Play (Space)' : 'Pause (Space)'}
+  className="inline-flex flex-none items-center justify-center gap-2 min-h-11 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95 touch-manipulation"
+>
+  {state.paused ? <PlayIcon /> : <PauseIcon />}
+  {state.paused ? 'Project' : 'Pause'}
+</button>
+                );
+
+const renderMuteButton = (props: any, state: any) => (
+<button
+  {...props}
+  data-tip={state.muted ? 'Unmute (M)' : 'Mute (M)'}
+  className={`${deckBtn} hidden md:inline-flex ${deckBtnIdle}`}
+>
+  {state.muted ? '🔇' : '🔊'}
+  <span className="hidden sm:inline">{state.muted ? 'MUTED' : 'AUDIO'}</span>
+</button>
+                );
+
+const renderFullscreenButton = (props: any, state: any) => (
+<button
+  {...props}
+  data-action="fullscreen"
+  data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
+  data-tip-align="end"
+  className={`${deckBtn} ${deckBtnIdle}`}
+>
+  {state.fullscreen ? <ExitFsIcon /> : <EnterFsIcon />}
+</button>
+                );
+
+/* ---- Memoised deck controls: each one re-renders only when ITS OWN props change ---- */
+const ScopeToggle = React.memo(function ScopeToggle({ scope, onToggle }: { scope: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={scope}
+      data-tip={scope ? 'Switch to 16:9 flat' : 'Switch to 21:9 scope'}
+      className={`${deckBtn} hidden md:inline-flex ${scope ? 'bg-blue-500/20 text-blue-200 border-blue-400/60' : deckBtnIdle}`}
+    >
+      {scope ? '21:9 SCOPE' : '16:9 FLAT'}
+    </button>
+  );
+});
+
+const LightsToggle = React.memo(function LightsToggle({ lightsOff, onToggle }: { lightsOff: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={lightsOff}
+      aria-label={lightsOff ? 'Lights on' : 'Lights off'}
+      data-tip={lightsOff ? 'Lights on' : 'Lights off'}
+      className={`${deckBtn} hidden md:inline-flex ${lightsOff ? deckBtnOn : deckBtnIdle}`}
+    >
+      {lightsOff ? '💡' : '🌑'}
+      <span>{lightsOff ? 'LIGHTS' : 'DARK'}</span>
+    </button>
+  );
+});
+
+const CaptionsToggle = React.memo(function CaptionsToggle({ ccOn, onToggle }: { ccOn: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={ccOn}
+      aria-label={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+      data-tip={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
+      className={`${deckBtn} hidden md:inline-flex ${ccOn ? deckBtnOn : deckBtnIdle}`}
+    >
+      <span className="font-black tracking-tight">CC</span>
+    </button>
+  );
+});
+
+/** The gear. The speed badge is an absolutely-positioned corner pill, so changing speed never shifts the deck layout. */
+const SettingsButton = React.memo(function SettingsButton({
+  open,
+  rate,
+  onToggle,
+  buttonRef,
+}: {
+  open: boolean;
+  rate: number;
+  onToggle: () => void;
+  buttonRef: React.Ref<HTMLButtonElement>;
+}) {
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      onClick={onToggle}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label="Projector settings"
+      data-tip="Settings"
+      className={`${deckBtn} ${open ? deckBtnOn : deckBtnIdle}`}
+    >
+      <GearIcon />
+      <span className="md:hidden text-xs font-bold">More</span>
+      {rate !== 1 && (
+        <span className="absolute -right-1.5 -top-1.5 rounded bg-amber-500 px-1 text-[10px] font-bold leading-4 text-black tabular-nums shadow">
+          {rate}×
+        </span>
+      )}
+    </button>
+  );
+});
+
+const RatePicker = React.memo(function RatePicker({
+  rate,
+  label,
+  onPick,
+}: {
+  rate: number;
+  label: string;
+  onPick: (r: number) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="relative grid grid-cols-4 rounded-xl border border-white/10 bg-black/40 p-1">
+      <span
+        aria-hidden="true"
+        className={`absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.55)] transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] ${
+          RATES.includes(rate) ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={{ transform: `translateX(${Math.max(0, RATES.indexOf(rate)) * 100}%)` }}
+      />
+      {RATES.map((r) => (
+        <button
+          key={r}
+          type="button"
+          role="radio"
+          aria-checked={r === rate}
+          data-autofocus={r === rate || (!RATES.includes(rate) && r === 1) ? true : undefined}
+          onClick={() => onPick(r)}
+          className={`relative z-10 min-h-11 rounded-lg text-sm font-bold tabular-nums transition-colors ${
+            r === rate ? 'text-black' : 'text-slate-200 hover:text-white'
+          }`}
+        >
+          {r}×
+        </button>
+      ))}
+    </div>
+  );
+});
+
+/* ---- Film stock switch ---- */
+const StockPicker = React.memo(function StockPicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: Stock;
+  onChange: (s: Stock) => void;
+  label: string;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="stock-switch">
+      {STOCKS.map((s) => (
+        <button key={s.id} type="button" role="radio" aria-checked={s.id === value} onClick={() => onChange(s.id)} className="stock-opt">
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+});
+
+/* ---- Real v10 chapters: notches on the filmstrip + the live chapter chip ---- */
+function ChapterMarks({ duration }: { duration: number }) {
+  const cues = useTextCues(chaptersTrack);
+  if (!duration) return null;
+  return (
+    <>
+      {cues.map((c) => (
+        <i key={c.id} aria-hidden="true" className="chapter-mark" style={{ left: `${(c.startTime / duration) * 100}%` }} />
+      ))}
+    </>
+  );
+}
+
+function ChapterChip({ hidden }: { hidden: boolean }) {
+  const active = useActiveTextCues(chaptersTrack);
+  const title = active[0]?.text;
+  if (!title) return null;
+  return (
+    <div
+      className={`hidden md:flex items-center gap-1.5 rounded-full border border-white/15 bg-black/75 px-3 py-1 backdrop-blur-md transition-opacity duration-300 ${
+        hidden ? 'opacity-0' : 'opacity-100'
+      }`}
+    >
+      <span aria-hidden="true" className="text-amber-300">▸</span>
+      <span className="text-[10px] font-mono uppercase tracking-widest text-slate-100">{title}</span>
+    </div>
+  );
+}
+
+/* ---- Tilt-reactive plastic: the light on the casing follows the pointer (desktop) or the phone's tilt ---- */
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+function useTiltLight(root: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const set = (x: number, y: number) => {
+      el.style.setProperty('--lx', `${(x * 100).toFixed(1)}%`);
+      el.style.setProperty('--ly', `${(y * 100).toFixed(1)}%`);
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      const r = el.getBoundingClientRect();
+      set(clamp01((e.clientX - r.left) / r.width), clamp01((e.clientY - r.top) / r.height));
+    };
+    const onTilt = (e: DeviceOrientationEvent) => {
+      if (e.gamma == null || e.beta == null) return;
+      set(clamp01(0.5 + e.gamma / 60), clamp01(0.5 + (e.beta - 45) / 60));
+    };
+    window.addEventListener('pointermove', onPointer);
+    window.addEventListener('deviceorientation', onTilt);
+    return () => {
+      window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('deviceorientation', onTilt);
+    };
+  }, [root]);
+}
+
+/** iOS reports device orientation only after a permission prompt, which has to come from a tap. */
+async function enableTilt() {
+  const D = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+  if (typeof D.requestPermission === 'function') {
+    try {
+      await D.requestPermission();
+    } catch {
+      /* declined: the pointer light still works on desktop */
+    }
+  }
+}
+
+/* ---- Media Session: lock-screen, headset and media-key controls ---- */
+function useMediaSession({
+  title,
+  poster,
+  store,
+  paused,
+  duration,
+  sec,
+}: {
+  title: string;
+  poster: string;
+  store: any;
+  paused: boolean;
+  duration: number;
+  sec: number;
+}) {
+  const live = useRef({ sec, duration });
+  live.current = { sec, duration };
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: 'Cinema UI',
+      artwork: [{ src: poster, sizes: '640x360', type: 'image/jpeg' }],
+    });
+  }, [title, poster]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    const set = (a: MediaSessionAction, h: MediaSessionActionHandler) => {
+      try {
+        navigator.mediaSession.setActionHandler(a, h);
+      } catch {
+        /* this action is not supported by the browser */
+      }
+    };
+    set('play', () => store.play?.());
+    set('pause', () => store.pause?.());
+    set('seekbackward', () => store.seek?.(Math.max(0, live.current.sec - 10)));
+    set('seekforward', () => store.seek?.(Math.min(live.current.duration || 0, live.current.sec + 10)));
+    set('seekto', (d) => {
+      if (d.seekTime != null) store.seek?.(d.seekTime);
+    });
+  }, [store]);
+
+  useEffect(() => {
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = paused ? 'paused' : 'playing';
+  }, [paused]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !Number.isFinite(duration) || duration <= 0) return;
+    try {
+      navigator.mediaSession.setPositionState({ duration, position: Math.min(sec, duration) });
+    } catch {
+      /* some browsers reject the call: harmless */
+    }
+  }, [sec, duration]);
+}
+
+function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff: React.Dispatch<React.SetStateAction<boolean>> }) {
   const store: any = usePlayer();
   const paused: boolean = usePlayer((s: any) => s.paused) ?? true;
   const rawTime: number = usePlayer((s: any) => (Number.isFinite(s.currentTime) ? Math.floor(s.currentTime) : 0)) ?? 0;
@@ -572,6 +909,66 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
   const [shelfView, setShelfView] = useState<'grid' | 'list'>('grid');
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = TRANSLATIONS[lang];
+  const [stock, setStock] = useState<Stock>('neutral');
+  const [noirCard, setNoirCard] = useState<{ mode: 'on' | 'off'; id: number } | null>(null);
+  const [tactile, setTactile] = useState(true);
+  const [compat, setCompat] = useState<'ok' | 'no-hls' | 'no-h264'>('ok');
+  const stockRef = useRef<Stock>('neutral');
+  stockRef.current = stock;
+  const prevStock = useRef<Stock>('neutral');
+  const cPresses = useRef<number[]>([]);
+  const cTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noirTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastDetentSec = useRef(0);
+  const audioCtx = useRef<AudioContext | null>(null);
+  const chapterCues = useTextCues(chaptersTrack);
+
+  useTiltLight(rootRef);
+  useMediaSession({ title: FILM_TITLE, poster: POSTER_URL, store, paused, duration, sec: currentTime });
+
+  /* ----- v10 chapters track (optional: if registering fails, the skin falls back to scenes) ----- */
+  useEffect(() => {
+    let handle: { remove: () => void } | undefined;
+    try {
+      handle = store.addTextTrack({ kind: 'chapters', label: 'Chapters', cues: CHAPTERS });
+    } catch {
+      /* chapters are a bonus: the skin works without them */
+    }
+    return () => {
+      try {
+        handle?.remove();
+      } catch {
+        /* already gone */
+      }
+    };
+  }, [store]);
+
+  /* ----- ask for device-orientation access on the first tap (iOS needs a gesture) ----- */
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const once = () => {
+      enableTilt();
+    };
+    root.addEventListener('click', once, { once: true });
+    return () => root.removeEventListener('click', once);
+  }, []);
+
+  /* ----- browser support check: warn clearly instead of failing silently ----- */
+  useEffect(() => {
+    const v = document.createElement('video');
+    if (v.canPlayType('application/vnd.apple.mpegurl')) return; // Safari / iOS: native HLS
+    const MS: any = (window as any).ManagedMediaSource || (window as any).MediaSource;
+    if (!MS) {
+      setCompat('no-hls');
+      return;
+    }
+    try {
+      if (!MS.isTypeSupported('video/mp4; codecs="avc1.42E01E,mp4a.40.2"')) setCompat('no-h264');
+    } catch {
+      /* unknown: assume it works */
+    }
+  }, []);
   const [scope, setScope] = useState(false);
   const [flash, setFlash] = useState(false);
   const [board, setBoard] = useState<{ frames: Frame[]; sheets: Record<string, Sheet> }>({ frames: [], sheets: {} });
@@ -910,6 +1307,49 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
     showToast(ok ? t.linkCopied : `${t.copyFailed} ${link}`);
   }, [roomId, showToast, t]);
 
+  /* ----- stable handlers for the memoised deck controls ----- */
+  const toggleScope = useCallback(() => setScope((s) => !s), []);
+  const toggleLights = useCallback(() => setLightsOff((l) => !l), [setLightsOff]);
+  const toggleCc = useCallback(() => setCcOn((c) => !c), []);
+  const toggleSettings = useCallback(() => {
+    if (panelStateRef.current === 'open') closePanel();
+    else setPanel('open');
+  }, [closePanel]);
+  const pickRate = useCallback((r: number) => {
+    live.current.store.setPlaybackRate?.(r);
+  }, []);
+
+  /* ----- Easter egg: press C three times quickly for Film Noir (a single C still opens the tape shelf) ----- */
+  const toggleNoir = useCallback(() => {
+    if (stockRef.current === 'noir') {
+      setStock(prevStock.current === 'noir' ? 'neutral' : prevStock.current);
+      setNoirCard({ mode: 'off', id: Date.now() });
+    } else {
+      prevStock.current = stockRef.current;
+      setStock('noir');
+      setNoirCard({ mode: 'on', id: Date.now() });
+    }
+    if (noirTimer.current) clearTimeout(noirTimer.current);
+    noirTimer.current = setTimeout(() => setNoirCard(null), 2800);
+  }, []);
+
+  const handleC = useCallback(() => {
+    const now = performance.now();
+    cPresses.current = [...cPresses.current.filter((x) => now - x < 900), now];
+    if (cTimer.current) clearTimeout(cTimer.current);
+    if (cPresses.current.length >= 3) {
+      cPresses.current = [];
+      toggleNoir();
+      return;
+    }
+    const n = cPresses.current.length;
+    // wait a moment to see whether more presses follow; an odd count toggles the shelf once
+    cTimer.current = setTimeout(() => {
+      if (n % 2 === 1) setSheetOpen((o) => !o);
+      cPresses.current = [];
+    }, 380);
+  }, [toggleNoir]);
+
   const trapTab = (e: React.KeyboardEvent) => {
     if (e.key !== 'Tab') return;
     const els = panelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), select');
@@ -970,7 +1410,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
         case 'c':
         case 'C':
           e.preventDefault();
-          setSheetOpen((o) => !o);
+          handleC();
           break;
         case 'v':
         case 'V':
@@ -991,11 +1431,11 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay, skipBy, setVolumeTo, clickFullscreen, closeSheet, endLeader, closePanel, goHome]);
+  }, [togglePlay, skipBy, setVolumeTo, clickFullscreen, closeSheet, endLeader, closePanel, goHome, handleC]);
 
   useEffect(
     () => () => {
-      [volTimer, flashTimer, clickTimer, skipTimer, panelTimer, toastTimer].forEach((r) => r.current && clearTimeout(r.current));
+      [volTimer, flashTimer, clickTimer, skipTimer, panelTimer, toastTimer, noirTimer, cTimer].forEach((r) => r.current && clearTimeout(r.current));
       leaderTimers.current.forEach(clearTimeout);
     },
     []
@@ -1009,7 +1449,18 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
     mq.addEventListener('change', onMq);
     const onFs = () => {
       const d: any = document;
-      setIsFs(!!(d.fullscreenElement || d.webkitFullscreenElement));
+      const fs = !!(d.fullscreenElement || d.webkitFullscreenElement);
+      setIsFs(fs);
+      // Touch devices: a 16:9 film belongs in landscape. Supported on Android Chrome while fullscreen; silently ignored elsewhere.
+      const orientation: any = (screen as any).orientation;
+      if (window.matchMedia('(pointer: coarse)').matches && orientation?.lock) {
+        try {
+          if (fs) orientation.lock('landscape').catch(() => {});
+          else orientation.unlock();
+        } catch {
+          /* not supported / not allowed: the layout still works in portrait */
+        }
+      }
     };
     document.addEventListener('fullscreenchange', onFs);
     document.addEventListener('webkitfullscreenchange', onFs);
@@ -1025,6 +1476,11 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
   const autoHideRef = useRef(false);
   autoHideRef.current = autoHide;
   showRef.current = showCenterButton;
+
+  /* The whole deck auto-hides after 3s of inactivity, in fullscreen only (desktop and phones), while playing.
+     It reuses the same idle timer as the centre button, so any tap / mouse move / key press brings it back.
+     It never hides while the settings panel or the tape shelf is open. */
+  const deckHidden = isFs && autoHide && !showCenterButton && panel === 'closed' && !sheetOpen;
 
   const armIdle = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
@@ -1143,6 +1599,43 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
   );
   const sceneIdx = duration ? Math.min(SCENES - 1, Math.floor((currentTime / duration) * SCENES)) : 0;
   const ambient = getFrame(currentTime);
+
+  /* chapter data: the real v10 chapters when present, otherwise the evenly spaced scenes */
+  const chapterRows = useMemo(
+    () =>
+      chapterCues.length
+        ? chapterCues.map((c) => ({ t: c.startTime, title: c.text ?? '' }))
+        : scenes.map((sc, i) => ({ t: sc.t, title: `Scene ${i + 1}` })),
+    [chapterCues, scenes]
+  );
+  const chapterIdx = chapterRows.reduce((acc, r, i) => (r.t <= currentTime + 0.01 ? i : acc), 0);
+
+  /* tactile detents: a short vibration (Android) and a soft synthesized click whenever playback crosses a chapter boundary */
+  useEffect(() => {
+    const prev = lastDetentSec.current;
+    lastDetentSec.current = currentTime;
+    if (!tactile || Math.abs(currentTime - prev) > 2) return; // ignore big jumps (scene picker, chapter list)
+    const crossed = chapterRows.some((r) => r.t > 0 && prev < r.t !== currentTime < r.t);
+    if (!crossed) return;
+    navigator.vibrate?.(8);
+    if (muted) return;
+    try {
+      const AC: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      audioCtx.current ??= new AC();
+      const a = audioCtx.current;
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.type = 'square';
+      o.frequency.value = 1800;
+      g.gain.setValueAtTime(0.04, a.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.025);
+      o.connect(g).connect(a.destination);
+      o.start();
+      o.stop(a.currentTime + 0.03);
+    } catch {
+      /* audio unavailable: the vibration still happened */
+    }
+  }, [currentTime, chapterRows, tactile, muted]);
   const volValue = muted ? 0 : volume;
   const centerVisible = (!isPlaying || flash || (autoHide && showCenterButton)) && leader === null;
 
@@ -1174,9 +1667,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
 
         {/* Screen */}
         <div
-          className={`cinema-screen group relative bg-black overflow-hidden transition-[aspect-ratio] duration-500 motion-reduce:transition-none ${
-            scope ? 'aspect-[21/9]' : 'aspect-video'
-          }`}
+          className="cinema-screen group relative bg-black overflow-hidden aspect-video" data-stock={stock}
         >
           <MuxVideo
             source={{ playbackId: PLAYBACK_ID }}
@@ -1185,6 +1676,48 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
             playsInline
             className="cinema-video"
           />
+
+          {/* 21:9 scope: letterbox bars scale in (transform only). The screen box never changes size, so the deck never moves. */}
+          <div aria-hidden="true" className={`scope-bar scope-bar-top ${scope ? 'is-on' : ''}`} />
+          <div aria-hidden="true" className={`scope-bar scope-bar-bottom ${scope ? 'is-on' : ''}`} />
+
+          {/* Film Noir extras: vignette + heavier grain (any time the Noir stock is on) */}
+          {stock === 'noir' && (
+            <>
+              <div aria-hidden="true" className="noir-vignette absolute inset-0 z-[15] pointer-events-none" />
+              <div aria-hidden="true" className="film-grain noir-grain absolute inset-0 z-[15] pointer-events-none" />
+            </>
+          )}
+
+          {/* Easter egg title card */}
+          {noirCard && (
+            <div key={noirCard.id} role="status" className="noir-card absolute inset-0 z-[26] flex flex-col items-center justify-center gap-3 pointer-events-none">
+              <span className="noir-rule" />
+              <p className="noir-title">{noirCard.mode === 'on' ? 'Film Noir' : 'Colour restored'}</p>
+              <span className="noir-rule" />
+              <p className="noir-sub">{noirCard.mode === 'on' ? 'press C three times to leave' : 'back to the picture you were watching'}</p>
+            </div>
+          )}
+
+          {/* Browser support notice (non-blocking: dismiss it and try anyway) */}
+          {compat !== 'ok' && (
+            <div role="alert" className="absolute inset-x-3 bottom-3 z-[42] rounded-xl border border-amber-400/40 bg-black/90 p-3 text-center">
+              <p className="text-xs font-bold text-amber-200">
+                {compat === 'no-hls' ? "This browser can't stream video." : "This browser can't decode H.264 video."}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-slate-300">
+                Open this page in the latest Chrome, Edge, Firefox or Safari.
+                {compat === 'no-h264' ? ' Headless, automated and some open-source Chromium or Linux builds ship without H.264.' : ''}
+              </p>
+              <button
+                type="button"
+                onClick={() => setCompat('ok')}
+                className="mt-2 min-h-11 rounded-lg border border-white/20 px-4 text-xs font-semibold text-slate-100 hover:bg-white/10"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* Click layer + center overlay */}
           <button
@@ -1348,7 +1881,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
           )}
 
           {/* Status + time */}
-          <div className="absolute top-2 sm:top-3 inset-x-2 sm:inset-x-3 z-20 flex items-center justify-between pointer-events-none">
+          <div className="screen-top absolute top-2 sm:top-3 inset-x-2 sm:inset-x-3 z-20 flex items-center justify-between pointer-events-none">
             <div className="flex items-center gap-2">
             <div className={`flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-white/15 transition-opacity duration-300 ${
                 director ? 'opacity-0' : 'opacity-100'
@@ -1372,6 +1905,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
                 <span className="text-[10px] font-mono uppercase tracking-widest text-amber-200">Room: {roomId}</span>
               </div>
             )}
+              <ChapterChip hidden={director} />
             </div>
             <div className="hidden md:block bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-white/15 font-mono text-xs text-amber-300 tracking-wider">
               {fmt(currentTime)}
@@ -1461,20 +1995,20 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
               </div>
               ) : (
               <ol className="chapter-list" aria-label="Chapters">
-                {scenes.map((sc, i) => (
+                {chapterRows.map((row, i) => (
                   <li key={i}>
                     <button
                       type="button"
-                      aria-current={i === sceneIdx ? 'true' : undefined}
+                      aria-current={i === chapterIdx ? 'true' : undefined}
                       onClick={() => {
-                        store.seek?.(sc.t);
+                        store.seek?.(row.t);
                         closeSheet();
                       }}
-                      className={`chapter-row ${i === sceneIdx ? 'is-current' : ''}`}
+                      className={`chapter-row ${i === chapterIdx ? 'is-current' : ''}`}
                     >
                       <span className="chapter-no">{String(i + 1).padStart(2, '0')}</span>
-                      <span className="chapter-title">Scene {i + 1}</span>
-                      <span className="chapter-time">{fmt(sc.t)}</span>
+                      <span className="chapter-title">{row.title}</span>
+                      <span className="chapter-time">{fmt(row.t)}</span>
                     </button>
                   </li>
                 ))}
@@ -1489,12 +2023,15 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
               <ErrorDialog.Title />
               <ErrorDialog.Description />
               <ErrorDialog.Close />
+              <button type="button" onClick={() => window.location.reload()}>
+                Reload player
+              </button>
             </ErrorDialog.Popup>
           </ErrorDialog.Root>
         </div>
 
         {/* ============ PROJECTOR DECK ============ */}
-        <div ref={deckRef} className="deck relative bg-gradient-to-b from-slate-900 to-[#070a12] border-t border-white/15 p-3 md:p-4">
+        <div ref={deckRef} data-hidden={deckHidden ? 'true' : undefined} className="deck relative bg-gradient-to-b from-slate-900 to-[#070a12] border-t border-white/15 p-3 md:p-4">
           {/* Filmstrip scrubber — a real v10 TimeSlider */}
           <div className="flex items-center gap-3">
             <ProjectorLamp on={isPlaying} variant="bar" />
@@ -1513,6 +2050,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
                   <div className="film-dim" />
                 </TimeSlider.Track>
                 <div className="sprockets" />
+                <ChapterMarks duration={duration} />
                 <TimeSlider.Thumb className="film-gate" />
               </TimeSlider.Root>
 
@@ -1543,35 +2081,13 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
                 </svg>
               </div>
 
-              <PlayButton
-                render={(props: any, state: any) => (
-                  <button
-                    {...props}
-                    data-tip={state.paused ? 'Play (Space)' : 'Pause (Space)'}
-                    className="inline-flex flex-none items-center justify-center gap-2 min-h-11 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs tracking-wider uppercase transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95 touch-manipulation"
-                  >
-                    {state.paused ? <PlayIcon /> : <PauseIcon />}
-                    {state.paused ? 'Project' : 'Pause'}
-                  </button>
-                )}
-              />
+              <PlayButton render={renderPlayButton} />
 
               <span className="md:hidden flex-1 min-w-0 truncate font-mono text-xs tabular-nums text-slate-100">
                 {fmt(currentTime)} <span className="text-slate-400">/ {fmt(duration)}</span>
               </span>
 
-              <MuteButton
-                render={(props: any, state: any) => (
-                  <button
-                    {...props}
-                    data-tip={state.muted ? 'Unmute (M)' : 'Mute (M)'}
-                    className={`${deckBtn} hidden md:inline-flex ${deckBtnIdle}`}
-                  >
-                    {state.muted ? '🔇' : '🔊'}
-                    <span className="hidden sm:inline">{state.muted ? 'MUTED' : 'AUDIO'}</span>
-                  </button>
-                )}
-              />
+              <MuteButton render={renderMuteButton} />
 
               <div className={`deck-vol relative flex items-center ${volToast !== null ? 'tip-off' : ''}`} data-tip="Volume (↑ ↓)">
                 <input
@@ -1600,69 +2116,15 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
             <div className="flex items-center gap-2">
               <JogKnob timeRef={timeRef} duration={duration} noBurn={noBurn} />
 
-              <button
-                type="button"
-                onClick={() => setCcOn((c) => !c)}
-                aria-pressed={ccOn}
-                aria-label={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
-                data-tip={ccOn ? 'Turn subtitles off' : 'Turn subtitles on'}
-                className={`${deckBtn} hidden md:inline-flex ${ccOn ? deckBtnOn : deckBtnIdle}`}
-              >
-                <span className="font-black tracking-tight">CC</span>
-              </button>
+              <CaptionsToggle ccOn={ccOn} onToggle={toggleCc} />
 
-              <button
-                type="button"
-                onClick={() => setScope((s) => !s)}
-                aria-pressed={scope}
-                data-tip={scope ? 'Switch to 16:9 flat' : 'Switch to 21:9 scope'}
-                className={`${deckBtn} hidden md:inline-flex ${scope ? 'bg-blue-500/20 text-blue-200 border-blue-400/60' : deckBtnIdle}`}
-              >
-                {scope ? '21:9 SCOPE' : '16:9 FLAT'}
-              </button>
+              <ScopeToggle scope={scope} onToggle={toggleScope} />
 
-              <button
-                type="button"
-                onClick={() => setLightsOff(!lightsOff)}
-                aria-pressed={lightsOff}
-                aria-label={lightsOff ? 'Lights on' : 'Lights off'}
-                data-tip={lightsOff ? 'Lights on' : 'Lights off'}
-                className={`${deckBtn} hidden md:inline-flex ${lightsOff ? deckBtnOn : deckBtnIdle}`}
-              >
-                {lightsOff ? '💡' : '🌑'}
-                <span>{lightsOff ? 'LIGHTS' : 'DARK'}</span>
-              </button>
+              <LightsToggle lightsOff={lightsOff} onToggle={toggleLights} />
 
-              <button
-                ref={gearBtnRef}
-                type="button"
-                onClick={() => (panel === 'open' ? closePanel() : setPanel('open'))}
-                aria-haspopup="dialog"
-                aria-expanded={panel === 'open'}
-                aria-label="Projector settings"
-                data-tip="Settings"
-                className={`${deckBtn} ${panel === 'open' ? deckBtnOn : deckBtnIdle}`}
-              >
-                <GearIcon />
-                <span className="md:hidden text-xs font-bold">More</span>
-                {rate !== 1 && (
-                  <span className="rounded bg-amber-500 px-1 text-[10px] font-bold text-black tabular-nums">{rate}×</span>
-                )}
-              </button>
+              <SettingsButton open={panel === 'open'} rate={rate} onToggle={toggleSettings} buttonRef={gearBtnRef} />
 
-              <FullscreenButton
-                render={(props: any, state: any) => (
-                  <button
-                    {...props}
-                    data-action="fullscreen"
-                    data-tip={state.fullscreen ? 'Exit fullscreen (F)' : 'Fullscreen (F)'}
-                    data-tip-align="end"
-                    className={`${deckBtn} ${deckBtnIdle}`}
-                  >
-                    {state.fullscreen ? <ExitFsIcon /> : <EnterFsIcon />}
-                  </button>
-                )}
-              />
+              <FullscreenButton render={renderFullscreenButton} />
             </div>
           </div>
         </div>
@@ -1678,7 +2140,7 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
         {/* ============ PROJECTOR CONTROL PANEL (glass sheet) ============ */}
         {panel !== 'closed' && (
           <div className="absolute inset-0 z-50" style={{ ['--deck-h' as any]: `${deckH}px` }}>
-            <div className="panel-scrim absolute inset-0 bg-black/55 backdrop-blur-[2px]" data-state={panel} onClick={closePanel} />
+            <div className="panel-scrim absolute inset-0 bg-black/45" data-state={panel} onClick={closePanel} />
             <div
               ref={panelRef}
               role="dialog"
@@ -1759,30 +2221,36 @@ function Cinema({ lightsOff, setLightsOff }: { lightsOff: boolean; setLightsOff:
               {/* Film speed */}
               <div className="panel-item mb-4" style={{ ['--d' as any]: '110ms' }}>
                 <p className="mb-2 text-[10px] font-mono tracking-[0.25em] uppercase text-slate-400">{t.filmSpeed}</p>
-                <div role="radiogroup" aria-label={t.filmSpeed} className="relative grid grid-cols-4 rounded-xl border border-white/10 bg-black/40 p-1">
-                  <span
-                    aria-hidden="true"
-                    className={`absolute top-1 bottom-1 left-1 w-[calc((100%-0.5rem)/4)] rounded-lg bg-amber-500 shadow-[0_0_18px_rgba(245,158,11,0.55)] transition-transform duration-300 ease-[cubic-bezier(.34,1.56,.64,1)] ${
-                      RATES.includes(rate) ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    style={{ transform: `translateX(${Math.max(0, RATES.indexOf(rate)) * 100}%)` }}
-                  />
-                  {RATES.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      role="radio"
-                      aria-checked={r === rate}
-                      data-autofocus={r === rate || (!RATES.includes(rate) && r === 1) ? true : undefined}
-                      onClick={() => store.setPlaybackRate?.(r)}
-                      className={`relative z-10 min-h-11 rounded-lg text-sm font-bold tabular-nums transition-colors ${
-                        r === rate ? 'text-black' : 'text-slate-200 hover:text-white'
+                <RatePicker rate={rate} label={t.filmSpeed} onPick={pickRate} />
+              </div>
+
+              {/* Film stock */}
+              <div className="panel-item mb-4" style={{ ['--d' as any]: '150ms' }}>
+                <p className="mb-2 text-[10px] font-mono tracking-[0.25em] uppercase text-slate-400">{t.filmStock}</p>
+                <StockPicker value={stock} onChange={setStock} label={t.filmStock} />
+              </div>
+
+              {/* Tactile feedback */}
+              <div className="panel-item mb-4" style={{ ['--d' as any]: '165ms' }}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={tactile}
+                  onClick={() => setTactile((v) => !v)}
+                  className="flex min-h-11 w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 text-left text-sm font-semibold text-white"
+                >
+                  <span>
+                    📳 {t.tactile}
+                    <span className="block text-[11px] font-normal text-slate-400">{t.tactileHint}</span>
+                  </span>
+                  <span className={`relative h-6 w-11 flex-none rounded-full transition-colors ${tactile ? 'bg-amber-500' : 'bg-white/20'}`}>
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all duration-300 ${
+                        tactile ? 'left-[22px]' : 'left-0.5'
                       }`}
-                    >
-                      {r}×
-                    </button>
-                  ))}
-                </div>
+                    />
+                  </span>
+                </button>
               </div>
 
               {/* Scenes */}
@@ -1972,7 +2440,7 @@ export default function Home() {
         <div
           onClick={() => setLightsOff(false)}
           aria-hidden="true"
-          className="fixed inset-0 z-30 bg-black/95 backdrop-blur-xl cursor-pointer animate-[fadeIn_.6s_ease]"
+          className="fixed inset-0 z-30 bg-black/95 cursor-pointer animate-[fadeIn_.6s_ease]"
         />
       )}
 
